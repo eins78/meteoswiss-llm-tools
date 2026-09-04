@@ -98,7 +98,7 @@
     "jest": "^30.3.0",
     "jest-environment-node": "^30.3.0",
     "js-yaml": "^5.2.2",
-    "mcp-remote": "^0.1.38",
+    "mcp-remote": "^0.8.0",
     "nock": "^14.0.11",
     "nodemon": "^3.1.14",
     "prettier": "^3.8.1",
