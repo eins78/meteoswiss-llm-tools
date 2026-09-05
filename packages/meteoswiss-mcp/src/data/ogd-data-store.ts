@@ -140,6 +140,40 @@ async function writeToDiskCache(cachePath: string, data: string | Buffer): Promi
 }
 
 /**
+ * Persist to the disk cache without ever failing the caller.
+ *
+ * The cache is an optimisation. By the time this runs the upstream fetch has
+ * already succeeded and the data is in memory, about to be returned either way,
+ * so a cache-layer fault must degrade to "slower next time" — never to a failed
+ * tool call. Before this guard, a concurrent prune deleting the temp file turned
+ * a completed download into `ENOENT: … rename` and took the whole request with
+ * it, which is how a reachable forecast became a user-visible outage.
+ *
+ * Logged via `console.error` rather than `debugData` on purpose: a swallowed
+ * error that nothing reports is how this stayed invisible, and `DEBUG` is not
+ * set in production.
+ *
+ * @param cachePath - Absolute path the entry should be written to
+ * @param data - Payload to persist
+ * @param cacheKey - Human-readable key, for the log line only
+ */
+async function cacheWriteBestEffort(
+  cachePath: string,
+  data: string,
+  cacheKey: string
+): Promise<void> {
+  try {
+    await writeToDiskCache(cachePath, data);
+    debugData('[ogd-store] Cached %d bytes to %s', data.length, cacheKey);
+  } catch (error) {
+    console.error(
+      `[ogd-store] Cache write failed for ${cacheKey} (serving fetched data anyway):`,
+      error instanceof Error ? error.message : String(error)
+    );
+  }
+}
+
+/**
  * Recursively collect regular files under `dir` with their size and mtime.
  * Missing directory → empty list.
  */
@@ -267,8 +301,7 @@ export async function getCsvData(
 
   debugData('[ogd-store] Downloading %s', url);
   const text = await fetchWithRetry(url, { useCache: false, timeout: 60_000 });
-  await writeToDiskCache(cachePath, text);
-  debugData('[ogd-store] Cached %d bytes to %s', text.length, cacheKey);
+  await cacheWriteBestEffort(cachePath, text, cacheKey);
   void pruneDiskCache();
   return parseCsv(text, filter);
 }
@@ -312,8 +345,7 @@ export async function getLatin1CsvData(
   debugData('[ogd-store] Downloading (binary/Latin1) %s', url);
   const buffer = await fetchBinary(url, { timeout: 60_000 });
   const text = LATIN1_DECODER.decode(buffer);
-  await writeToDiskCache(cachePath, text);
-  debugData('[ogd-store] Cached %d bytes (decoded) to %s', text.length, cacheKey);
+  await cacheWriteBestEffort(cachePath, text, cacheKey);
   void pruneDiskCache();
   return parseCsv(text, filter);
 }
