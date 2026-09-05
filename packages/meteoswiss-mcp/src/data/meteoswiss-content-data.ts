@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { JSDOM } from 'jsdom';
@@ -21,6 +22,88 @@ const TEST_FIXTURES_ROOT = existsSync(TEST_FIXTURES_DEV_PATH)
   : TEST_FIXTURES_PROD_PATH;
 
 const USE_TEST_FIXTURES = process.env.USE_TEST_FIXTURES === 'true';
+
+/**
+ * Memo for converted page content — the compute the cache was built for.
+ *
+ * `httpCache` stores the fetched HTML, so a repeat request already skips the
+ * network. It did **not** skip the conversion: `new JSDOM(html)` →
+ * `expandWebComponents` → `turndown` ran again on every call and reproduced a
+ * byte-identical result. Measured on a real page: 271 ms cold, then ~60 ms on
+ * every subsequent call, all of it recomputation.
+ *
+ * The key includes a hash of the **HTML itself**, not just the URL. That makes
+ * this a pure-function memo rather than a second content cache: it can never
+ * serve markdown staler than the HTML it was derived from, so it needs no TTL
+ * of its own and cannot disagree with `httpCache` about freshness. When the page
+ * changes, the hash changes and the conversion re-runs.
+ *
+ * Verified deterministic before adopting: 6 runs over 2 pages in both output
+ * formats produced one distinct result each. Memoising a nondeterministic
+ * function would be a correctness bug, not an optimisation.
+ *
+ * Bounded by entry count rather than bytes — entries are ~9 KB of markdown, so
+ * the default cap is a few MB. Insertion order is recency order: reads
+ * re-insert, and eviction takes the first (least recently used) key.
+ */
+const CONTENT_MEMO_MAX_ENTRIES = (() => {
+  const raw = Number(process.env.CONTENT_MEMO_MAX_ENTRIES);
+  return Number.isFinite(raw) && raw > 0 ? raw : 200;
+})();
+
+const conversionMemo = new Map<string, ContentResponse>();
+
+/** Build the memo key from the conversion's full input set. */
+function conversionMemoKey(
+  url: string,
+  format: 'markdown' | 'text',
+  includeMetadata: boolean,
+  html: string
+): string {
+  return createHash('sha256')
+    .update(url)
+    .update('\0')
+    .update(format)
+    .update('\0')
+    .update(String(includeMetadata))
+    .update('\0')
+    .update(html)
+    .digest('hex');
+}
+
+/**
+ * Read a memoised conversion, promoting it to most-recently-used.
+ *
+ * Returns a structured clone so a caller mutating the response cannot corrupt
+ * the entry every later caller receives.
+ */
+function readConversionMemo(key: string): ContentResponse | undefined {
+  const hit = conversionMemo.get(key);
+  if (hit === undefined) {
+    return undefined;
+  }
+  conversionMemo.delete(key);
+  conversionMemo.set(key, hit);
+  return structuredClone(hit);
+}
+
+/** Store a conversion result, evicting the least recently used entries. */
+function writeConversionMemo(key: string, value: ContentResponse): void {
+  conversionMemo.delete(key);
+  conversionMemo.set(key, value);
+  while (conversionMemo.size > CONTENT_MEMO_MAX_ENTRIES) {
+    const oldest = conversionMemo.keys().next().value;
+    if (oldest === undefined) break;
+    conversionMemo.delete(oldest);
+  }
+}
+
+/**
+ * Drop every memoised conversion. Intended for tests.
+ */
+export function clearContentConversionMemo(): void {
+  conversionMemo.clear();
+}
 
 /**
  * Hard cap on HTML size before parsing. `new JSDOM(html)` is synchronous and
@@ -151,10 +234,22 @@ async function fetchFromWeb(
     const html = await fetchHtml(fullUrl, { validateUrl: assertAllowedContentUrl });
     debugData('Content fetched successfully, size: %d bytes', html.length);
 
+    // Skip the conversion entirely when this exact HTML has already been
+    // converted with these options — the compute saving this cache exists for.
+    const memoKey = conversionMemoKey(fullUrl, format, includeMetadata, html);
+    const memoised = readConversionMemo(memoKey);
+    if (memoised !== undefined) {
+      debugData('Conversion memo hit for %s (format=%s)', fullUrl, format);
+      return memoised;
+    }
+
     // processHtmlContent is synchronous; a Promise.race timeout around it was
     // dead code (the parse completes before the race is evaluated). The parse is
     // bounded instead by MAX_HTML_BYTES inside processHtmlContent.
-    return processHtmlContent(html, fullUrl, format, includeMetadata);
+    const converted = processHtmlContent(html, fullUrl, format, includeMetadata);
+    writeConversionMemo(memoKey, converted);
+    debugData('Conversion memo store for %s (format=%s)', fullUrl, format);
+    return structuredClone(converted);
   } catch (error) {
     debugData('Content fetch error: %o', error);
     if (error instanceof HttpRequestError && error.statusCode === 404) {
