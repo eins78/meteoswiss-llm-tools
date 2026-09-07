@@ -37,6 +37,14 @@ beforeAll(async () => {
   // the live path, so it must be off here.
   process.env.USE_TEST_FIXTURES = 'false';
 
+  // Disable the cachified page cache for this file so the layer under it — the
+  // HTML-keyed conversion memo — is observable on its own. With ttl 0 every call
+  // revalidates, which is exactly the case the memo exists to make cheap: the
+  // page was re-fetched, the bytes are unchanged, so the conversion must not
+  // run again. The cachified layer has its own file.
+  process.env.CONTENT_CACHE_TTL_MS = '0';
+  process.env.CONTENT_CACHE_SWR_MS = '0';
+
   jest.unstable_mockModule('../../src/support/http-communication.js', () => ({
     fetchHtml,
     HttpRequestError: class HttpRequestError extends Error {
