@@ -7,6 +7,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import writeFileAtomic from 'write-file-atomic';
 import { fetchWithRetry, fetchBinary } from '../support/http-communication.js';
 import { parseCsv, type CsvRow } from '../support/ogd-csv-parser.js';
 import { debugData } from '../support/logging.js';
@@ -107,6 +108,16 @@ export type CacheTier = keyof typeof CACHE_TTL;
 
 const CACHE_DIR = process.env.OGD_CACHE_DIR || path.join(os.tmpdir(), 'meteoswiss-ogd');
 
+/**
+ * How old an empty directory must be before the prune reclaims it.
+ *
+ * Guards the window between `mkdir` and `write-file-atomic` opening its temp
+ * file inside that directory; see `removeEmptyDirs`. Generous on purpose — the
+ * husks it reclaims accumulate one per day, so reaping them a minute later costs
+ * nothing, while reaping them a millisecond too early costs a cache write.
+ */
+const DIR_REAP_MIN_AGE_MS = envNumber('OGD_CACHE_DIR_REAP_MIN_AGE_MS', 60_000);
+
 /** Total-bytes ceiling for the on-disk cache before LRU eviction kicks in. */
 const CACHE_MAX_BYTES = envNumber('OGD_CACHE_MAX_BYTES', 268_435_456); // 256 MiB
 
@@ -129,14 +140,63 @@ export function resolveCachePath(cacheKey: string): string {
 }
 
 /**
- * Write data to disk cache atomically (write to .tmp then rename).
+ * Is this a filesystem "no such file or directory" error?
+ *
+ * Node throws `SystemError`, which is not in the type system, so this narrows
+ * `unknown` rather than asserting a shape.
+ */
+function isEnoentError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code: unknown }).code === 'ENOENT'
+  );
+}
+
+/**
+ * Write data to the disk cache atomically.
+ *
+ * Delegates the temp-file dance to `write-file-atomic` rather than hand-rolling
+ * it. The previous implementation named its temp file `${cachePath}.${Date.now()}.tmp`,
+ * which had two defects that both surfaced as the *same* `ENOENT: … rename` error:
+ *
+ *  1. `Date.now()` has millisecond resolution, so two concurrent writers for one
+ *     cache key could pick the same temp path — the first rename won and the
+ *     second found nothing.
+ *  2. The `.tmp` suffix made those files indistinguishable from crash orphans, so
+ *     the cache prune deleted them mid-write (see `pruneDiskCache`).
+ *
+ * `write-file-atomic` mixes pid, thread id and a monotonic counter into the temp
+ * name so it cannot collide, and serialises concurrent writes to the same path.
+ * It also removes its own temp file on a *clean* exit — `signal-exit` covers
+ * normal exit, SIGINT, SIGTERM and SIGHUP, but not SIGKILL, so an OOM-kill or an
+ * expired `docker stop` grace period can still orphan one. That leak is bounded:
+ * orphans count toward `CACHE_MAX_BYTES` and are age-evicted like anything else,
+ * and they are never served because reads go by exact path. Which is why the
+ * orphan sweep is gone rather than merely age-gated — the sweep was deleting
+ * *live* temp files to reclaim a bounded amount of dead ones.
+ *
+ * The `ENOENT` retry is for a third race, distinct from the two above and
+ * introduced by `removeEmptyDirs`: between our `mkdir` and the library opening
+ * its temp file inside that directory there are three awaits, and a concurrent
+ * prune walking an *empty* directory will `rmdir` it in that window. The
+ * directory is age-gated there to make this rare; this closes the residue,
+ * because a directory that was already empty and old enough to reap can still be
+ * chosen the instant before we write into it.
  */
 async function writeToDiskCache(cachePath: string, data: string | Buffer): Promise<void> {
   const dir = path.dirname(cachePath);
   await fs.mkdir(dir, { recursive: true });
-  const tmpPath = `${cachePath}.${Date.now()}.tmp`;
-  await fs.writeFile(tmpPath, data);
-  await fs.rename(tmpPath, cachePath);
+  try {
+    await writeFileAtomic(cachePath, data);
+  } catch (error) {
+    if (!isEnoentError(error)) {
+      throw error;
+    }
+    await fs.mkdir(dir, { recursive: true });
+    await writeFileAtomic(cachePath, data);
+  }
 }
 
 /**
@@ -179,8 +239,8 @@ async function cacheWriteBestEffort(
  */
 async function listCacheFiles(
   dir: string
-): Promise<Array<{ path: string; size: number; mtimeMs: number; isTmp: boolean }>> {
-  const out: Array<{ path: string; size: number; mtimeMs: number; isTmp: boolean }> = [];
+): Promise<Array<{ path: string; size: number; mtimeMs: number }>> {
+  const out: Array<{ path: string; size: number; mtimeMs: number }> = [];
   const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => null);
   if (entries === null) {
     return out;
@@ -192,12 +252,7 @@ async function listCacheFiles(
     } else if (entry.isFile()) {
       try {
         const stat = await fs.stat(full);
-        out.push({
-          path: full,
-          size: stat.size,
-          mtimeMs: stat.mtimeMs,
-          isTmp: entry.name.endsWith('.tmp'),
-        });
+        out.push({ path: full, size: stat.size, mtimeMs: stat.mtimeMs });
       } catch {
         // file vanished between readdir and stat — ignore
       }
@@ -206,39 +261,96 @@ async function listCacheFiles(
   return out;
 }
 
+/**
+ * Remove empty directories under `dir`, depth-first. `dir` itself is kept.
+ *
+ * Eviction only ever deleted files, so the dated `forecasts/<item-id>/` folders
+ * accumulated one per day and were never reclaimed — 42 of 43 on the production
+ * container were empty husks. Best-effort: a non-empty directory simply fails
+ * the `rmdir` and is skipped.
+ *
+ * **Directories younger than `DIR_REAP_MIN_AGE_MS` are left alone**, and that is
+ * load-bearing rather than tidiness. `writeToDiskCache` does `mkdir` and then
+ * hands to `write-file-atomic`, which awaits three times before opening its temp
+ * file *inside* that directory. Reaping an empty directory in that window makes
+ * the write fail `ENOENT` — the very error this whole change set exists to
+ * remove. Measured at 35–56% when a walk reaches a freshly created directory
+ * promptly, so it is a wide window, not a theoretical one.
+ *
+ * Note the husks this reclaims are precisely what used to *mask* the race: a
+ * cache root with 42 stale directories takes long enough to walk that the writer
+ * has usually opened its temp file by the time the walk arrives. Once the husks
+ * are gone the walk is fast, so the race got *more* likely as the fix took
+ * effect — which is why the gate is here and not left to a follow-up.
+ *
+ * A young directory is not leaked; it is simply reaped by a later pass, once it
+ * is old enough that nothing is about to write into it.
+ */
+async function removeEmptyDirs(dir: string): Promise<void> {
+  const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => null);
+  if (entries === null) {
+    return;
+  }
+  const now = Date.now();
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      const full = path.join(dir, entry.name);
+      await removeEmptyDirs(full);
+      const stats = await fs.stat(full).catch(() => null);
+      if (stats === null || now - stats.mtimeMs < DIR_REAP_MIN_AGE_MS) {
+        continue;
+      }
+      await fs.rmdir(full).catch(() => {
+        // still has contents, or vanished — either way, nothing to do
+      });
+    }
+  }
+}
+
 /** Serializes prune passes so concurrent fetches don't double-evict. */
 let prunePromise: Promise<void> | null = null;
 
 /**
- * Bound the on-disk cache: delete orphaned `.tmp` files, then evict oldest
- * entries (LRU by mtime) until total size is under CACHE_MAX_BYTES. Best-effort
+ * Bound the on-disk cache: evict oldest entries by mtime until the total is
+ * under CACHE_MAX_BYTES, then reclaim any directories left empty. Best-effort
  * and never throws — a cache-maintenance failure must not fail a data request.
+ *
+ * There is deliberately no `.tmp` orphan sweep any more. It was the direct cause
+ * of the race in #145: it could not distinguish a crash orphan from a temp file
+ * a concurrent request was still writing, so it deleted the latter and that
+ * writer's rename failed with `ENOENT`. `write-file-atomic` now owns temp-file
+ * lifetime and removes its own on a *clean* exit (not SIGKILL — see
+ * `writeToDiskCache`), so the sweep has no job worth the risk it carried.
+ *
+ * Note this is eviction by *write* age, not true LRU: reads do not touch mtime.
+ * Renaming it would be a lie in the other direction, so the behaviour is stated
+ * rather than relabelled.
+ *
+ * An in-flight `write-file-atomic` temp file is the newest thing on disk, so
+ * oldest-first eviction reaches it last — it could only be removed if evicting
+ * everything else still left the cache over the ceiling. Should that ever
+ * happen, `cacheWriteBestEffort` degrades it to a log line rather than a failed
+ * request.
  */
 async function pruneDiskCache(): Promise<void> {
   if (prunePromise) return prunePromise;
   prunePromise = (async () => {
     try {
       const files = await listCacheFiles(CACHE_DIR);
-      let totalBytes = 0;
-      const live: Array<{ path: string; size: number; mtimeMs: number }> = [];
-      for (const file of files) {
-        if (file.isTmp) {
-          await fs.rm(file.path, { force: true });
-          continue;
-        }
-        totalBytes += file.size;
-        live.push(file);
-      }
-      if (totalBytes <= CACHE_MAX_BYTES) return;
+      let totalBytes = files.reduce((sum, file) => sum + file.size, 0);
 
-      // Evict oldest-first until under the ceiling.
-      live.sort((a, b) => a.mtimeMs - b.mtimeMs);
-      for (const file of live) {
-        if (totalBytes <= CACHE_MAX_BYTES) break;
-        await fs.rm(file.path, { force: true });
-        totalBytes -= file.size;
-        debugData('[ogd-store] Evicted cache file %s (%d bytes)', file.path, file.size);
+      if (totalBytes > CACHE_MAX_BYTES) {
+        // Evict oldest-first until under the ceiling.
+        const live = [...files].sort((a, b) => a.mtimeMs - b.mtimeMs);
+        for (const file of live) {
+          if (totalBytes <= CACHE_MAX_BYTES) break;
+          await fs.rm(file.path, { force: true });
+          totalBytes -= file.size;
+          debugData('[ogd-store] Evicted cache file %s (%d bytes)', file.path, file.size);
+        }
       }
+
+      await removeEmptyDirs(CACHE_DIR);
     } catch (error) {
       debugData('[ogd-store] Cache prune failed (non-fatal): %O', error);
     } finally {
