@@ -1,5 +1,27 @@
 # meteoswiss-mcp
 
+## 3.1.0 - 2026-09-11
+
+### Minor Changes
+
+- 28a5ad8: `search` and `fetch` now cache the converted page, not just the fetched HTML. Repeat requests for the same page skip the conversion entirely, several requests for one page while it is being fetched share a single fetch, and a page that has just expired is served immediately while it refreshes in the background — so a MeteoSwiss outage degrades to slightly-stale content instead of an error. Same page, three consecutive requests: **271 / 62 / 59 ms → 232 / 0 / 0 ms**.
+
+  When a page cannot be fetched, the 404 message now shows the full URL that was requested rather than the raw `id`, so a client that passed a bare path can see what it actually asked for.
+
+  New optional environment variables: `CONTENT_CACHE_TTL_MS`, `CONTENT_CACHE_SWR_MS`, `CONTENT_CACHE_MAX_ENTRIES`, `CONTENT_MEMO_MAX_ENTRIES`. An empty value is treated as unset rather than as zero, so `CONTENT_CACHE_TTL_MS=` does not silently disable the cache.
+
+### Patch Changes
+
+- e8ee6f7: Security: the published Docker image is now built with every dependency override applied, and those overrides have been refreshed to close the advisories outstanding against the bundled dependencies.
+
+  Dependencies only — no API, tool or behaviour change.
+
+- 83dd2f1: Fix intermittent failures in the forecast and current-weather tools. A request could fail with `ENOENT: no such file or directory, rename …` even though the weather data had been fetched successfully — a failing _cache_ write was taking down the whole request.
+
+  Caching is now treated as the optimisation it is: if a cache write fails the data is still returned, and the failure is logged where it can actually be seen. The conditions that produced the error in the first place are gone.
+
+  New optional environment variable: `OGD_CACHE_DIR_REAP_MIN_AGE_MS` (default `60000`) — how long an empty cache directory must have been idle before it is reclaimed.
+
 ## 3.1.0-rc.0 - 2026-09-11
 
 ### Minor Changes
