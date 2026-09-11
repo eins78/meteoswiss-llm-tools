@@ -1,7 +1,7 @@
 {
   "name": "meteoswiss-mcp",
   "mcpName": "io.github.eins78/meteoswiss-mcp",
-  "version": "3.0.0",
+  "version": "3.1.0-rc.0",
   "description": "MCP server for MeteoSwiss weather data — forecasts, real-time measurements, stations, pollen.",
   "license": "CC0-1.0",
   "author": "Max F. Albrecht <1@178.is>",
