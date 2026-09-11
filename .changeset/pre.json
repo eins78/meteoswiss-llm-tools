@@ -1,0 +1,9 @@
+{
+  "mode": "pre",
+  "tag": "rc",
+  "initialVersions": {
+    "meteoswiss-mcp": "3.0.0",
+    "meteoswiss-skills": "1.1.0"
+  },
+  "changesets": []
+}
