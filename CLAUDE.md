@@ -362,6 +362,14 @@ For a **skill-facing change** (anything under `packages/meteoswiss-skills/`), ad
   temp file inside it. `removeEmptyDirs` reaping a directory in that window is a third way to produce
   the same `ENOENT`, so it skips anything younger than `OGD_CACHE_DIR_REAP_MIN_AGE_MS` and the write
   re-`mkdir`s and retries once. Don't "simplify" either half away.
+- **Two independent caches, on purpose**: `httpCache` (in-memory, URL-keyed, upstream-header TTLs)
+  caches *fetched bytes*; the conversion memo in `meteoswiss-content-data.ts` caches *converted
+  markdown*, keyed on a hash of the input HTML so it is a pure-function memo and needs no TTL of its
+  own. `cachified` sits above the memo for single-flight and stale-while-revalidate. Note its
+  `fallbackToCache` option is gated on `forceFresh` and does **not** apply to this path — the SWR
+  window is what makes an unreachable upstream degrade to stale content. Pass `cachified` a
+  `reporter` as its **second positional argument**; a `reporter` key inside the options object is
+  silently ignored, and without one a failing background refresh logs nothing at all.
 - **`meteoswiss` prefix on tools**: LLM tool selection reliability — helps models distinguish weather tools from other MCP servers.
 
 ## References

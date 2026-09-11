@@ -1,7 +1,9 @@
 import fs from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { cachified, type Cache, type CacheEntry, type CreateReporter } from '@epic-web/cachified';
 import { JSDOM } from 'jsdom';
 import TurndownService from 'turndown';
 import { gfm } from 'turndown-plugin-gfm';
@@ -21,6 +23,205 @@ const TEST_FIXTURES_ROOT = existsSync(TEST_FIXTURES_DEV_PATH)
   : TEST_FIXTURES_PROD_PATH;
 
 const USE_TEST_FIXTURES = process.env.USE_TEST_FIXTURES === 'true';
+
+/**
+ * Memo for converted page content — the compute the cache was built for.
+ *
+ * `httpCache` stores the fetched HTML, so a repeat request already skips the
+ * network. It did **not** skip the conversion: `new JSDOM(html)` →
+ * `expandWebComponents` → `turndown` ran again on every call and reproduced a
+ * byte-identical result. Measured on a real page: 271 ms cold, then ~60 ms on
+ * every subsequent call, all of it recomputation.
+ *
+ * The key includes a hash of the **HTML itself**, not just the URL. That makes
+ * this a pure-function memo rather than a second content cache: it can never
+ * serve markdown staler than the HTML it was derived from, so it needs no TTL
+ * of its own and cannot disagree with `httpCache` about freshness. When the page
+ * changes, the hash changes and the conversion re-runs.
+ *
+ * Verified deterministic before adopting: 6 runs over 2 pages in both output
+ * formats produced one distinct result each. Memoising a nondeterministic
+ * function would be a correctness bug, not an optimisation.
+ *
+ * Bounded by entry count rather than bytes. Real MeteoSwiss pages convert to
+ * ~9 KB of markdown, so in practice the default cap holds a few MB — but the
+ * bound is on *count*, and `MAX_HTML_BYTES` admits a 5 MB page, so the
+ * theoretical ceiling across this map and the cachified store is far higher than
+ * that. Stated rather than papered over: switching to a byte bound would be the
+ * fix if a page corpus ever showed it mattering. Insertion order is recency
+ * order: reads re-insert, and eviction takes the first (least recently used) key.
+ */
+const CONTENT_MEMO_MAX_ENTRIES = (() => {
+  const raw = Number(process.env.CONTENT_MEMO_MAX_ENTRIES);
+  return Number.isFinite(raw) && raw > 0 ? raw : 200;
+})();
+
+const conversionMemo = new Map<string, ContentResponse>();
+
+/** Build the memo key from the conversion's full input set. */
+function conversionMemoKey(
+  url: string,
+  format: 'markdown' | 'text',
+  includeMetadata: boolean,
+  html: string
+): string {
+  return createHash('sha256')
+    .update(url)
+    .update('\0')
+    .update(format)
+    .update('\0')
+    .update(String(includeMetadata))
+    .update('\0')
+    .update(html)
+    .digest('hex');
+}
+
+/**
+ * Read a memoised conversion, promoting it to most-recently-used.
+ *
+ * Returns a structured clone so a caller mutating the response cannot corrupt
+ * the entry every later caller receives.
+ */
+function readConversionMemo(key: string): ContentResponse | undefined {
+  const hit = conversionMemo.get(key);
+  if (hit === undefined) {
+    return undefined;
+  }
+  conversionMemo.delete(key);
+  conversionMemo.set(key, hit);
+  return structuredClone(hit);
+}
+
+/** Store a conversion result, evicting the least recently used entries. */
+function writeConversionMemo(key: string, value: ContentResponse): void {
+  conversionMemo.delete(key);
+  conversionMemo.set(key, value);
+  while (conversionMemo.size > CONTENT_MEMO_MAX_ENTRIES) {
+    const oldest = conversionMemo.keys().next().value;
+    if (oldest === undefined) break;
+    conversionMemo.delete(oldest);
+  }
+}
+
+/**
+ * Drop every memoised conversion. Intended for tests.
+ */
+export function clearContentConversionMemo(): void {
+  conversionMemo.clear();
+  contentCacheStore.clear();
+}
+
+/**
+ * Read a non-negative-number env var, falling back when unset or malformed.
+ *
+ * The empty string is treated as unset, not as zero. `Number('')` is `0`, which
+ * passes a `>= 0` check, so `CONTENT_CACHE_TTL_MS=` in a compose file — a
+ * perfectly ordinary way to write "leave this alone" — would otherwise silently
+ * disable the cache rather than fall back to the default.
+ */
+function envMs(name: string, fallback: number): number {
+  const value = process.env[name];
+  if (value === undefined || value.trim() === '') {
+    return fallback;
+  }
+  const raw = Number(value);
+  return Number.isFinite(raw) && raw >= 0 ? raw : fallback;
+}
+
+/** How long a converted page is served without revalidating. */
+const CONTENT_TTL_MS = envMs('CONTENT_CACHE_TTL_MS', 5 * 60_000);
+/**
+ * Window after the TTL in which an expired page is returned immediately while a
+ * refresh runs behind it.
+ *
+ * This is also what provides stale-if-error here: the caller already has the
+ * stale page before the background refresh runs, so an unreachable MeteoSwiss
+ * degrades to slightly-old content instead of an error. Deliberately generous
+ * for that reason.
+ *
+ * Note `cachified`'s `fallbackToCache` option does NOT cover this case — it is
+ * gated on `forceFresh` (`if (forceFresh && fallbackToCache > 0)` in its source)
+ * and this path never forces a refresh, so setting it would imply a property we
+ * would not actually get.
+ */
+const CONTENT_SWR_MS = envMs('CONTENT_CACHE_SWR_MS', 55 * 60_000);
+/** Entry cap for the converted-page cache. See the memo above on sizing. */
+const CONTENT_CACHE_MAX_ENTRIES = (() => {
+  const raw = Number(process.env.CONTENT_CACHE_MAX_ENTRIES);
+  return Number.isFinite(raw) && raw > 0 ? raw : 200;
+})();
+
+const contentCacheStore = new Map<string, CacheEntry<ContentResponse>>();
+
+/**
+ * Store backing the converted-page cache, in the shape `cachified` expects.
+ *
+ * `cachified` ships no store — it is a wrapper — so this supplies one. It is
+ * in-process, which is the same sharing scope the rest of the server's caches
+ * have: one container, one node process, all sessions hitting the same maps.
+ *
+ * What `cachified` adds over the plain memo below it:
+ *  - **single-flight**: concurrent requests for the same page trigger ONE fetch
+ *    and ONE conversion instead of N, which is the CPU saving that matters most
+ *    when several sessions ask at once;
+ *  - **stale-while-revalidate**: an expired page is served immediately while a
+ *    refresh runs behind it, so nobody waits on the conversion;
+ *  - **stale-if-error**: an expired entry inside the revalidate window is returned
+ *    before the refresh is attempted, so upstream being down degrades to a
+ *    slightly stale page rather than an error.
+ *
+ * Bounded by entry count with least-recently-used eviction; insertion order is
+ * recency order, so the first key is the least recently used.
+ */
+const contentCache: Cache<ContentResponse> = {
+  name: 'meteoswiss-content',
+  get: (key) => {
+    const entry = contentCacheStore.get(key);
+    if (entry === undefined) {
+      return undefined;
+    }
+    contentCacheStore.delete(key);
+    contentCacheStore.set(key, entry);
+    return entry;
+  },
+  set: (key, entry) => {
+    contentCacheStore.delete(key);
+    contentCacheStore.set(key, entry);
+    while (contentCacheStore.size > CONTENT_CACHE_MAX_ENTRIES) {
+      const oldest = contentCacheStore.keys().next().value;
+      if (oldest === undefined) break;
+      contentCacheStore.delete(oldest);
+    }
+  },
+  delete: (key) => {
+    contentCacheStore.delete(key);
+  },
+};
+
+/**
+ * Surface cache-layer failures that would otherwise be invisible.
+ *
+ * When a page is stale-but-within-SWR, `cachified` returns it to the caller and
+ * refreshes behind the response. If that refresh fails, the caller is happy and
+ * **nothing is logged** — the failure is only ever offered to this reporter
+ * (`refreshValueError`). Without one, an unreachable MeteoSwiss looks like
+ * business as usual for up to the full SWR window, and then requests start
+ * failing with no lead-up in the logs.
+ *
+ * `console.error`, not `debugData`, for the same reason as the OGD cache-write
+ * guard: `DEBUG` is unset in production, and a swallowed error nothing reports
+ * is exactly how the original outage stayed invisible for a week.
+ */
+function contentCacheReporter(url: string): CreateReporter<ContentResponse> {
+  return () => (event) => {
+    if (event.name === 'refreshValueError' || event.name === 'getFreshValueError') {
+      console.error(
+        `[content-cache] ${event.name} for ${url} (serving cached content if available):`,
+        event.error instanceof Error ? event.error.message : String(event.error)
+      );
+    }
+  };
+}
 
 /**
  * Hard cap on HTML size before parsing. `new JSDOM(html)` is synchronous and
@@ -141,9 +342,38 @@ async function fetchFromWeb(
 
   debugData('Fetching content from URL: %s', fullUrl);
 
-  // Validate scheme, port, and domain up front (thrown directly to the caller).
+  // Validated OUTSIDE the cache on purpose: a rejected URL must never consult,
+  // populate or be served from it.
   assertAllowedContentUrl(fullUrl);
 
+  const cached = await cachified(
+    {
+      cache: contentCache,
+      key: `${fullUrl} ${format} ${includeMetadata}`,
+      ttl: CONTENT_TTL_MS,
+      // Serves a stale page rather than nothing when MeteoSwiss is unreachable —
+      // for a briefing that runs once a morning, an hour-old article beats an error.
+      staleWhileRevalidate: CONTENT_SWR_MS,
+      getFreshValue: () => fetchAndConvert(fullUrl, format, includeMetadata),
+    },
+    // Second positional arg, not an option — a `reporter` key inside the options
+    // object is silently ignored, which is how a stale-serve outage stays quiet.
+    contentCacheReporter(fullUrl)
+  );
+
+  // cachified hands every caller the same object; clone so one caller mutating
+  // the response cannot corrupt what the next one receives.
+  return structuredClone(cached);
+}
+
+/**
+ * Fetch a page and convert it. The uncached path behind `fetchFromWeb`'s cache.
+ */
+async function fetchAndConvert(
+  fullUrl: string,
+  format: 'markdown' | 'text',
+  includeMetadata: boolean
+): Promise<ContentResponse> {
   try {
     debugData('Making HTTP request to fetch content');
     // Re-validate every redirect hop so an upstream open redirect cannot escape
@@ -151,15 +381,27 @@ async function fetchFromWeb(
     const html = await fetchHtml(fullUrl, { validateUrl: assertAllowedContentUrl });
     debugData('Content fetched successfully, size: %d bytes', html.length);
 
+    // Skip the conversion entirely when this exact HTML has already been
+    // converted with these options — the compute saving this cache exists for.
+    const memoKey = conversionMemoKey(fullUrl, format, includeMetadata, html);
+    const memoised = readConversionMemo(memoKey);
+    if (memoised !== undefined) {
+      debugData('Conversion memo hit for %s (format=%s)', fullUrl, format);
+      return memoised;
+    }
+
     // processHtmlContent is synchronous; a Promise.race timeout around it was
     // dead code (the parse completes before the race is evaluated). The parse is
     // bounded instead by MAX_HTML_BYTES inside processHtmlContent.
-    return processHtmlContent(html, fullUrl, format, includeMetadata);
+    const converted = processHtmlContent(html, fullUrl, format, includeMetadata);
+    writeConversionMemo(memoKey, converted);
+    debugData('Conversion memo store for %s (format=%s)', fullUrl, format);
+    return structuredClone(converted);
   } catch (error) {
     debugData('Content fetch error: %o', error);
     if (error instanceof HttpRequestError && error.statusCode === 404) {
       throw new Error(
-        `Content not found: ${id}. Use the search tool to discover valid page URLs.`,
+        `Content not found: ${fullUrl}. Use the search tool to discover valid page URLs.`,
         { cause: error }
       );
     }
