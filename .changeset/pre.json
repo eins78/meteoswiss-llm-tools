@@ -5,5 +5,9 @@
     "meteoswiss-mcp": "3.0.0",
     "meteoswiss-skills": "1.1.0"
   },
-  "changesets": []
+  "changesets": [
+    "content-conversion-cache",
+    "docker-root-context-supply-chain",
+    "ogd-cache-enoent-races"
+  ]
 }
