@@ -223,6 +223,31 @@ cache saves the download, never the parse.
 - [ ] The RC poller has been installed but has not yet deployed anything — the next genuinely new
       pre-release is its first real test.
 
+### Stale artifacts outside this repo
+
+This work began on 2026-09-05 as a *diagnosis*, before anyone knew a fix would land. Several things
+written then describe a bug that is now fixed and released, and none of them were revisited. Found
+by reconstructing the full session history at wrap-up, not by noticing at the time — which is the
+lesson: a diagnosis written before the fix outlives the fix, in places outside the repo that ships
+it.
+
+- [ ] `~/OPS/home-workspace/projects/homebot/scripts/homebot-briefing` still carries a
+      retry-once-on-`ENOENT` instruction block added for this bug. Harmless but now dead weight; the
+      briefing no longer needs it.
+- [ ] `~/OPS/home-workspace/wiki/entities/meteoswiss-mcp.md` is marked "✅ SOLVED — diagnosed",
+      which was true on 09-05 and is now understated: fixed and released in `3.1.0`.
+- [ ] `~/OPS/home-workspace/docs/2026-09-05-meteoswiss-mcp-forecast-failure.md` is the proposal
+      document, written before the design settled. It describes two races; a third was found in
+      review, and the recommendation shifted mid-document. Worth a closing note pointing at the
+      release rather than a rewrite.
+- [ ] `~/.claude/skills/meteoswiss-ogd/` is still an unmanaged hand-copy of the skill, synced to
+      1.1.0 by hand on 09-05. The follow-up flagged then — convert it to a plugin install so it has
+      an update path — was never done, and it is the reason the briefing ran a known-fixed
+      `forecast.sh` bug for eight weeks.
+
+The corresponding memory (`project_meteoswiss_enoent_dead_workarounds`) has been corrected: it still
+said the fix was written-but-unmerged in PR #146.
+
 ## What shipped
 
 | | |
