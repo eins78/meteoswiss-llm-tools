@@ -40,12 +40,13 @@ jobs:
         id: changesets
         uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
         with:
-          title: 'Version Packages'
-          commit: 'I: Version packages'
+          # v2 renamed inputs (title→pr-title, commit→commit-message, version→version-script)
+          pr-title: 'Version Packages'
+          commit-message: 'I: Version packages'
           # `pnpm run version` = `changeset version` + syncs meteoswiss-skills'
           # bumped version into its plugin/marketplace manifests and SKILL.md
           # + stamps release dates onto the new CHANGELOG headers.
-          version: pnpm run version
+          version-script: pnpm run version
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
