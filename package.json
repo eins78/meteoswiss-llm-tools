@@ -7,43 +7,7 @@
     "changeset": "changeset",
     "version": "changeset version && node scripts/sync-skill-manifest-versions.mjs && node scripts/stamp-changelog-dates.mjs"
   },
-  "packageManager": "pnpm@10.34.5+sha512.a4ee05f2f73658255bd6a89859c065a45c28a57daefae2c893a168ee2b73168c37b91e83e57ea67654ad03f03031746430e8bce38e362e042605fb8abc80192e",
-  "pnpm": {
-    "overrides": {
-      "minimatch@<3.1.4": "10.2.6",
-      "flatted@<3.4.2": "3.4.4",
-      "picomatch@<2.3.2": "4.0.7",
-      "path-to-regexp@<0.1.13": "8.4.2",
-      "path-to-regexp@>=8.0.0 <8.4.0": "8.4.2",
-      "qs@<6.16.0": "6.16.0",
-      "diff@>=4.0.0 <4.0.4": "9.0.0",
-      "js-yaml@<4.3.2": "4.3.2",
-      "read-yaml-file": "^2.1.0",
-      "mcp-remote>path-to-regexp": "8.4.2",
-      "eslint-plugin-tsdoc>@typescript-eslint/utils": "8.71.1",
-      "shell-quote@<1.12.0": "1.12.0",
-      "fast-uri@<4.2.1": "4.2.1",
-      "form-data@>=4.0.0 <4.0.6": "4.0.6",
-      "ip-address@<=10.3.0": "10.7.3",
-      "undici@<8.11.2": "8.11.2",
-      "ws@>=8.0.0 <8.22.0": "8.22.0",
-      "brace-expansion@>=4.0.0 <5.0.12": "5.0.12",
-      "brace-expansion@<1.1.21": "1.1.21",
-      "brace-expansion@>=2.0.0 <2.1.7": "2.1.7",
-      "proxy-addr@<2.0.8": "2.0.8",
-      "handlebars@<4.7.10": "4.7.10",
-      "hono": ">=4.12.34",
-      "browserslist@<=4.28.6": "4.28.7",
-      "@humanfs/node@<0.16.8": "0.16.8",
-      "@hono/node-server": ">=1.19.13"
-    },
-    "auditConfig": {
-      "ignoreGhsas": [
-        "GHSA-frvp-7c67-39w9",
-        "GHSA-vfj7-8cjw-p6xm"
-      ]
-    }
-  },
+  "packageManager": "pnpm@12.10.1+sha512.ba40a37eb1a370d60fea8c4cf1d364c13bcccef518e98ad2bcee954f539d38da37458e58261a3fa55e06523450ea0ffff9f497b135be41f2c15c1642bacace6c",
   "devDependencies": {
     "@changesets/cli": "^2.30.0"
   }

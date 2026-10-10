@@ -6,10 +6,11 @@ packages:
 # verdict ran with promptfoo's native build scripts (esbuild, sharp, onnxruntime-node, etc.)
 # executed. pnpm blocks unapproved build scripts by default; approve the same set here so a
 # standalone `pnpm install` matches that environment instead of silently diverging from it.
-onlyBuiltDependencies:
-  - "@playwright/browser-chromium"
-  - "@swc/core"
-  - esbuild
-  - onnxruntime-node
-  - protobufjs
-  - sharp
+# pnpm >= 12: setting renamed to `allowBuilds` (map form) and unapproved scripts are a hard error.
+allowBuilds:
+  "@playwright/browser-chromium": true
+  "@swc/core": true
+  esbuild: true
+  onnxruntime-node: true
+  protobufjs: true
+  sharp: true
