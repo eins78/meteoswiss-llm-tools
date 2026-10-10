@@ -3,6 +3,7 @@ packages:
 
 # Astro + sharp (image processing) need native build scripts; pnpm blocks unapproved build
 # scripts by default. Approve them here, same pattern as meteoswiss-forecast-evals.
-onlyBuiltDependencies:
-  - esbuild
-  - sharp
+# pnpm >= 12: setting renamed to `allowBuilds` (map form) and unapproved scripts are a hard error.
+allowBuilds:
+  esbuild: true
+  sharp: true
