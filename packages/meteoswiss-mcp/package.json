@@ -76,7 +76,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@modelcontextprotocol/inspector": "^0.22.0",
+    "@modelcontextprotocol/inspector": "^2.10.1",
     "@types/cors": "^2.8.19",
     "@types/debug": "^4.1.13",
     "@types/express": "^5.0.6",
