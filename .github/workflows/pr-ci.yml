@@ -19,7 +19,7 @@ jobs:
         uses: pnpm/action-setup@v6
         
       - name: Setup Node.js 24
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24
           cache: 'pnpm'
@@ -94,7 +94,7 @@ jobs:
         uses: pnpm/action-setup@v6
 
       - name: Setup Node.js 24
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24
           cache: 'pnpm'
@@ -120,7 +120,7 @@ jobs:
         uses: pnpm/action-setup@v6
 
       - name: Setup Node.js 24
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24
 
@@ -151,7 +151,7 @@ jobs:
         uses: pnpm/action-setup@v6
         
       - name: Setup Node.js 24
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24
           cache: 'pnpm'
