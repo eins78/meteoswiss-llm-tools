@@ -415,14 +415,14 @@ export async function getIndexedCsvData<T>(
   url: string,
   cacheKey: string,
   tier: CacheTier,
-  build: (text: string) => MemoBuild<T>
+  build: (data: Buffer, reload: () => Promise<Buffer>) => MemoBuild<T> | Promise<MemoBuild<T>>
 ): Promise<T> {
   const fixturePath = resolveFixturePath(url);
   if (fixturePath) {
     debugData('[ogd-store] Using fixture: %s', fixturePath);
     const stat = await fs.stat(fixturePath);
     return memoize(`fixture:${fixturePath}`, `${stat.mtimeMs}:${stat.size}`, async () =>
-      build(await fs.readFile(fixturePath, 'utf-8'))
+      build(await fs.readFile(fixturePath), () => fs.readFile(fixturePath))
     );
   }
   if (USE_TEST_FIXTURES) {
@@ -436,7 +436,7 @@ export async function getIndexedCsvData<T>(
   if (version !== null) {
     try {
       const value = await memoize(cacheKey, version, async () =>
-        build(await fs.readFile(cachePath, 'utf-8'))
+        build(await fs.readFile(cachePath), () => fs.readFile(cachePath))
       );
       debugData('[ogd-store] Cache hit for %s', cacheKey);
       return value;
@@ -454,11 +454,12 @@ export async function getIndexedCsvData<T>(
     const text = await fetchWithRetry(url, { useCache: false, timeout: 60_000 });
     await cacheWriteBestEffort(cachePath, text, cacheKey);
     void pruneDiskCache();
+    const toBytes = (): Buffer => Buffer.from(text, 'utf-8');
     const writtenVersion = await freshCacheVersion(cachePath, ttl);
     if (writtenVersion === null) {
-      return build(text).value; // cache write failed: serve, don't memoise
+      return (await build(toBytes(), async () => toBytes())).value; // cache write failed: serve, don't memoise
     }
-    return memoize(cacheKey, writtenVersion, async () => build(text));
+    return memoize(cacheKey, writtenVersion, async () => build(toBytes(), async () => toBytes()));
   })().finally(() => inflightLoads.delete(cacheKey));
   inflightLoads.set(cacheKey, load);
   return load;

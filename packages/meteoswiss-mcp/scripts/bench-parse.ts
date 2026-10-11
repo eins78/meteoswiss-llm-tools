@@ -24,7 +24,10 @@ import * as fs from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { buildForecastIndex, lookupForecastSeries } from '../src/data/ogd-forecast-index.js';
+import { monitorEventLoopDelay } from 'node:perf_hooks';
+import { lookupForecastSeries, type ForecastIndex } from '../src/data/ogd-forecast-index.js';
+import { buildForecastIndexOffThread } from '../src/data/ogd-forecast-pool.js';
+import type { MemoBuild } from '../src/data/ogd-parse-memo.js';
 
 const PARAMS = ['tre200h0', 'rre150h0', 'jww003i0', 'sre000h0', 'fu3010h0', 'fu3010h1'] as const;
 
@@ -46,12 +49,20 @@ function fileFor(dir: string, param: string): string {
   return path.join(dir, name);
 }
 
-async function buildAll(dir: string): Promise<Map<string, ReturnType<typeof buildForecastIndex>>> {
-  const out = new Map<string, ReturnType<typeof buildForecastIndex>>();
-  for (const param of PARAMS) {
-    out.set(param, buildForecastIndex(await fsp.readFile(fileFor(dir, param)), param));
-  }
-  return out;
+/** Read and index all six files concurrently, the way a forecast request does. */
+async function buildAll(dir: string): Promise<Map<string, MemoBuild<ForecastIndex>>> {
+  const entries = await Promise.all(
+    PARAMS.map(
+      async (param) =>
+        [
+          param,
+          await buildForecastIndexOffThread(await fsp.readFile(fileFor(dir, param)), param, () =>
+            fsp.readFile(fileFor(dir, param))
+          ),
+        ] as const
+    )
+  );
+  return new Map(entries);
 }
 
 type Fixture = { hashes: Record<string, string>; points: Record<string, string>; bytes: number };
@@ -109,16 +120,20 @@ async function main(): Promise<void> {
   const runs = runsIdx >= 0 ? Number(args[runsIdx + 1]) : 5;
   const totals: number[] = [];
   let retained = 0;
+  const loopDelay = monitorEventLoopDelay({ resolution: 5 });
+  loopDelay.enable();
   for (let i = 0; i < runs; i++) {
     const start = performance.now();
     const built = await buildAll(dir);
     totals.push(performance.now() - start);
     retained = [...built.values()].reduce((sum, b) => sum + b.bytes, 0);
   }
+  loopDelay.disable();
+  const inOrder = totals.map((t) => Math.round(t)).join('/');
   totals.sort((a, b) => a - b);
   const median = Math.round(totals[Math.floor(runs / 2)]!);
   console.error(
-    `runs ${totals.map((t) => Math.round(t)).join('/')} ms, peak RSS ${Math.round(process.resourceUsage().maxRSS / 1024)} MiB, retained ${Math.round(retained / 1048576)} MiB`
+    `runs (in order) ${inOrder} ms, peak RSS ${Math.round(process.resourceUsage().maxRSS / 1024)} MiB, retained ${Math.round(retained / 1048576)} MiB, event-loop stall max ${Math.round(loopDelay.max / 1e6)} ms`
   );
   console.log(`parse_ms ${median}`);
 }

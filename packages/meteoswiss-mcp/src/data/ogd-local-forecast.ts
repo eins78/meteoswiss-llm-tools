@@ -14,7 +14,8 @@
 
 import { getLatestItem, resolveAssetUrl } from './ogd-stac-client.js';
 import { getIndexedCsvData } from './ogd-data-store.js';
-import { buildForecastIndex, lookupForecastSeries } from './ogd-forecast-index.js';
+import { lookupForecastSeries } from './ogd-forecast-index.js';
+import { buildForecastIndexOffThread } from './ogd-forecast-pool.js';
 import { roundByUnit, roundNullable } from '../support/round-measurements.js';
 import { resolveForecastPoint } from './ogd-station-resolver.js';
 import { debugData } from '../support/logging.js';
@@ -435,8 +436,8 @@ export async function getLocalForecast(
       const url = resolveAssetUrl(item, assetKey);
       const cacheKey = `forecasts/${item.id}/${assetKey}`;
       debugData('[ogd-forecast] Downloading %s...', param);
-      const index = await getIndexedCsvData(url, cacheKey, 'forecast', (text) =>
-        buildForecastIndex(text, param)
+      const index = await getIndexedCsvData(url, cacheKey, 'forecast', (data, reload) =>
+        buildForecastIndexOffThread(data, param, reload)
       );
       const dateValues = lookupForecastSeries(index, pointIdStr, pointTypeStr);
       debugData('[ogd-forecast] Got %d values for %s', dateValues.size, param);
