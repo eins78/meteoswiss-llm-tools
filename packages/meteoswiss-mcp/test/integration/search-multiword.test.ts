@@ -1,4 +1,4 @@
-import { describe, it, expect, jest, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect , vi, beforeAll, afterAll } from 'vitest';
 import { MCPClient } from './mcp-client.js';
 
 describe('Search tool - Multi-word queries', () => {
@@ -12,7 +12,7 @@ describe('Search tool - Multi-word queries', () => {
 
   afterAll(async () => {
     await client.stop();
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('Multi-word query handling', () => {

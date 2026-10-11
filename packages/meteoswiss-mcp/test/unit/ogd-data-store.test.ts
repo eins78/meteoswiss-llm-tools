@@ -1,4 +1,4 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 import * as path from 'node:path';
 import { resolveCachePath } from '../../src/data/ogd-data-store.js';
 

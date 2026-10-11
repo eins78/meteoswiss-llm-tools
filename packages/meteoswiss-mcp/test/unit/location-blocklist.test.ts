@@ -1,4 +1,4 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 import { isBlocklisted } from '../../src/support/location-blocklist.js';
 
 describe('isBlocklisted', () => {

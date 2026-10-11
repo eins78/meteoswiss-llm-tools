@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it } from 'vitest';
 import { getServiceBaseUrl, getMcpEndpointUrl, getHealthEndpointUrl } from '../../src/support/url-generation.js';
 import type { EnvConfig } from '../../src/support/environment-validation.js';
 

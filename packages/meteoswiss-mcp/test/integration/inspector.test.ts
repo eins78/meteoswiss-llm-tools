@@ -1,3 +1,4 @@
+import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 /**
  * Integration tests using MCP SDK client with Streamable HTTP transport
  */

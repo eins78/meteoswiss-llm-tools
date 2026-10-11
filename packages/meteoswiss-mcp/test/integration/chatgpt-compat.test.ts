@@ -28,7 +28,7 @@
  * force the reviewer to either approve the change (and confirm it's still
  * ChatGPT-compatible) or revert it.
  */
-import { describe, expect, it, jest, beforeAll, afterAll } from '@jest/globals';
+import { describe, expect, it , vi, beforeAll, afterAll } from 'vitest';
 import { MCPClient } from './mcp-client.js';
 
 const FIXTURE_FETCH_PATH = '/wetter/gefahren/verhaltensempfehlungen/wind.html';
@@ -91,7 +91,7 @@ describe('ChatGPT Deep Research compatibility', () => {
 
   afterAll(async () => {
     await client.stop();
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('tool discovery (tools/list)', () => {

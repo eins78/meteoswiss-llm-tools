@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeAll, beforeEach, jest } from '@jest/globals';
+import { describe, expect, it, beforeAll, beforeEach, vi } from 'vitest';
 
 /**
  * The converted-page cache (`cachified`) that sits above the conversion memo.
@@ -17,8 +17,21 @@ const PAGE_URL = 'https://www.meteoswiss.admin.ch/weather/weather-and-climate-fr
 const htmlFor = (body: string): string =>
   `<!doctype html><html><head><title>T</title></head><body><main><h1>Föhn</h1>${body}</main></body></html>`;
 
-const fetchHtml = jest.fn<() => Promise<string>>();
-const expandWebComponents = jest.fn<(document: unknown) => void>();
+// vi.mock factories are hoisted above the declarations that use them, so the
+// mock fns must be created via vi.hoisted (vitest's unstable_mockModule
+// equivalent — the mock applies before the dynamic import in beforeAll).
+const fetchHtml = vi.hoisted(() => vi.fn<() => Promise<string>>());
+const expandWebComponents = vi.hoisted(() => vi.fn<(document: unknown) => void>());
+
+vi.mock('../../src/support/http-communication.js', () => ({
+  fetchHtml,
+  HttpRequestError: class HttpRequestError extends Error {
+    statusCode?: number;
+  },
+}));
+vi.mock('../../src/data/meteoswiss-web-components.js', () => ({
+  expandWebComponents,
+}));
 
 let fetchMeteoSwissContent: typeof import('../../src/data/meteoswiss-content-data.js').fetchMeteoSwissContent;
 let clearContentConversionMemo: typeof import('../../src/data/meteoswiss-content-data.js').clearContentConversionMemo;
@@ -29,16 +42,6 @@ beforeAll(async () => {
   // than racing a clock.
   process.env.CONTENT_CACHE_TTL_MS = '600000';
   process.env.CONTENT_CACHE_SWR_MS = '0';
-
-  jest.unstable_mockModule('../../src/support/http-communication.js', () => ({
-    fetchHtml,
-    HttpRequestError: class HttpRequestError extends Error {
-      statusCode?: number;
-    },
-  }));
-  jest.unstable_mockModule('../../src/data/meteoswiss-web-components.js', () => ({
-    expandWebComponents,
-  }));
 
   ({ fetchMeteoSwissContent, clearContentConversionMemo } = await import(
     '../../src/data/meteoswiss-content-data.js'

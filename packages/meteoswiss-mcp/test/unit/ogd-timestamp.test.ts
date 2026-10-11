@@ -1,4 +1,4 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 import { normalizeOgdTimestamp } from '../../src/support/ogd-timestamp.js';
 
 /** FUN-3: both fixed-width OGD timestamp formats must normalize to ISO 8601. */

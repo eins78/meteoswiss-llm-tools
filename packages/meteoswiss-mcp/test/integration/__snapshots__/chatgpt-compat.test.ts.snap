@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`ChatGPT Deep Research compatibility manifest snapshot matches the canonical ChatGPT tool-manifest shape 1`] = `
+exports[`ChatGPT Deep Research compatibility > manifest snapshot > matches the canonical ChatGPT tool-manifest shape 1`] = `
 {
   "fetch": {
     "description": "Fetch full content from a MeteoSwiss webpage and convert to markdown or plain text. Use the search tool first to discover valid page URLs, then pass the full URL as the id parameter.",

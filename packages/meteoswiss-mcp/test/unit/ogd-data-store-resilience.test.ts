@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeAll, afterAll, jest } from '@jest/globals';
+import { describe, expect, it, beforeAll, afterAll, vi } from 'vitest';
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import * as fs from 'node:fs/promises';
@@ -63,7 +63,7 @@ afterAll(async () => {
 
 describe('getCsvData — a failing cache write must not fail the request', () => {
   it('returns the fetched rows even though every cache write fails', async () => {
-    const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
       const rows = await getCsvData(
         `${baseUrl}/tre200h0.csv`,
@@ -88,7 +88,7 @@ describe('getCsvData — a failing cache write must not fail the request', () =>
   });
 
   it('still serves data on a repeat call, since nothing was ever cached', async () => {
-    const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
       const rows = await getCsvData(
         `${baseUrl}/tre200h0.csv`,
