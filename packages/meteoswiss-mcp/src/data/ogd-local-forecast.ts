@@ -13,8 +13,9 @@
  */
 
 import { getLatestItem, resolveAssetUrl } from './ogd-stac-client.js';
-import { getCsvData } from './ogd-data-store.js';
-import { parseNumeric } from '../support/ogd-csv-parser.js';
+import { getIndexedCsvData } from './ogd-data-store.js';
+import { lookupForecastSeries } from './ogd-forecast-index.js';
+import { buildForecastIndexOffThread } from './ogd-forecast-pool.js';
 import { roundByUnit, roundNullable } from '../support/round-measurements.js';
 import { resolveForecastPoint } from './ogd-station-resolver.js';
 import { debugData } from '../support/logging.js';
@@ -413,9 +414,6 @@ export async function getLocalForecast(
   const pointIdStr = String(point.point_id);
   const pointTypeStr = String(point.point_type_id);
 
-  const rowFilter = (row: Record<string, string | null>): boolean =>
-    row.point_id === pointIdStr && row.point_type_id === pointTypeStr;
-
   // Non-station points only need the hourly series (aggregated to daily summaries). Stations
   // fetch BOTH: their official daily aggregates AND the hourly series (for `hourly[]` and the
   // two series with no official daily product — sunshine, wind; see `buildStationForecast`) —
@@ -438,13 +436,10 @@ export async function getLocalForecast(
       const url = resolveAssetUrl(item, assetKey);
       const cacheKey = `forecasts/${item.id}/${assetKey}`;
       debugData('[ogd-forecast] Downloading %s...', param);
-      const rows = await getCsvData(url, cacheKey, 'forecast', rowFilter);
-
-      const dateValues = new Map<string, number | null>();
-      for (const row of rows) {
-        const date = row.Date ?? '';
-        dateValues.set(date, parseNumeric(row[param] ?? null));
-      }
+      const index = await getIndexedCsvData(url, cacheKey, 'forecast', (data, reload) =>
+        buildForecastIndexOffThread(data, param, reload)
+      );
+      const dateValues = lookupForecastSeries(index, pointIdStr, pointTypeStr);
       debugData('[ogd-forecast] Got %d values for %s', dateValues.size, param);
       return [param, dateValues] as const;
     })
