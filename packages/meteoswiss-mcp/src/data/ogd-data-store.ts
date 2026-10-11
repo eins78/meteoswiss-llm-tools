@@ -11,6 +11,7 @@ import writeFileAtomic from 'write-file-atomic';
 import { fetchWithRetry, fetchBinary } from '../support/http-communication.js';
 import { parseCsv, type CsvRow } from '../support/ogd-csv-parser.js';
 import { debugData } from '../support/logging.js';
+import { memoize, type MemoBuild } from './ogd-parse-memo.js';
 import { USE_TEST_FIXTURES, OGD_FIXTURES_ROOT } from '../support/test-fixtures.js';
 
 const LATIN1_DECODER = new TextDecoder('latin1');
@@ -375,6 +376,92 @@ async function readCacheUtf8(cachePath: string, ttl: number): Promise<string | n
     // cache miss
   }
   return null;
+}
+
+/**
+ * Stat a cache file and report its version (`mtimeMs:size`) if it is still fresh.
+ * Returns null if the entry is missing or stale.
+ */
+async function freshCacheVersion(cachePath: string, ttl: number): Promise<string | null> {
+  try {
+    const stat = await fs.stat(cachePath);
+    if (Date.now() - stat.mtimeMs < ttl) {
+      return `${stat.mtimeMs}:${stat.size}`;
+    }
+  } catch {
+    // cache miss
+  }
+  return null;
+}
+
+/** Downloads in flight, so concurrent cold callers for one key share a single fetch. */
+const inflightLoads = new Map<string, Promise<unknown>>();
+
+/**
+ * Get a derived form of a UTF-8 CSV, parsed at most once per cached file version.
+ *
+ * Same fetch/cache/fixture behaviour as {@link getCsvData}, but instead of parsing
+ * the cached text on every call, `build` runs once per disk-cache file version and
+ * its result is memoised (see `ogd-parse-memo.ts`). Concurrent callers share one
+ * download and one build. A cache fault only costs speed: if the disk write
+ * fails the freshly built value is returned without being memoised.
+ *
+ * @param url - Direct download URL for the CSV file
+ * @param cacheKey - Unique key for disk cache (also the memo key)
+ * @param tier - Cache TTL tier
+ * @param build - Derives the retained form from the CSV text; reports its size in bytes
+ */
+export async function getIndexedCsvData<T>(
+  url: string,
+  cacheKey: string,
+  tier: CacheTier,
+  build: (text: string) => MemoBuild<T>
+): Promise<T> {
+  const fixturePath = resolveFixturePath(url);
+  if (fixturePath) {
+    debugData('[ogd-store] Using fixture: %s', fixturePath);
+    const stat = await fs.stat(fixturePath);
+    return memoize(`fixture:${fixturePath}`, `${stat.mtimeMs}:${stat.size}`, async () =>
+      build(await fs.readFile(fixturePath, 'utf-8'))
+    );
+  }
+  if (USE_TEST_FIXTURES) {
+    throw new Error(`No test fixture for URL: ${url}. Add a mapping in resolveFixturePath.`);
+  }
+
+  const cachePath = resolveCachePath(cacheKey);
+  const ttl = CACHE_TTL[tier];
+
+  const version = await freshCacheVersion(cachePath, ttl);
+  if (version !== null) {
+    try {
+      const value = await memoize(cacheKey, version, async () =>
+        build(await fs.readFile(cachePath, 'utf-8'))
+      );
+      debugData('[ogd-store] Cache hit for %s', cacheKey);
+      return value;
+    } catch (error) {
+      if (!isEnoentError(error)) throw error;
+      // pruned between stat and read: fall through to a fresh download
+    }
+  }
+
+  const pending = inflightLoads.get(cacheKey);
+  if (pending) return (await pending) as T;
+
+  const load = (async (): Promise<T> => {
+    debugData('[ogd-store] Downloading %s', url);
+    const text = await fetchWithRetry(url, { useCache: false, timeout: 60_000 });
+    await cacheWriteBestEffort(cachePath, text, cacheKey);
+    void pruneDiskCache();
+    const writtenVersion = await freshCacheVersion(cachePath, ttl);
+    if (writtenVersion === null) {
+      return build(text).value; // cache write failed: serve, don't memoise
+    }
+    return memoize(cacheKey, writtenVersion, async () => build(text));
+  })().finally(() => inflightLoads.delete(cacheKey));
+  inflightLoads.set(cacheKey, load);
+  return load;
 }
 
 /**
