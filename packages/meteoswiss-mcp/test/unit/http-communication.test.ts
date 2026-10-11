@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import {
   fetchWithRetry,
   fetchBinary,
@@ -12,7 +12,7 @@ import {
  * Covers TEST-6 (retry loop) and SEC-3 (body cap) from the 2026-07-11 review.
  */
 
-type FetchMock = jest.Mock<(input: unknown, init?: unknown) => Promise<Response>>;
+type FetchMock = Mock<(input: unknown, init?: unknown) => Promise<Response>>;
 
 const realFetch = global.fetch;
 let fetchMock: FetchMock;
@@ -33,13 +33,13 @@ function streamOf(chunkSizes: number[]): ReadableStream<Uint8Array> {
 }
 
 beforeEach(() => {
-  fetchMock = jest.fn() as FetchMock;
+  fetchMock = vi.fn() as FetchMock;
   global.fetch = fetchMock as unknown as typeof fetch;
 });
 
 afterEach(() => {
   global.fetch = realFetch;
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 describe('fetchWithRetry — success', () => {

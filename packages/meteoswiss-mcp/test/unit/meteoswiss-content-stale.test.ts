@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeAll, jest } from '@jest/globals';
+import { describe, expect, it, beforeAll, vi } from 'vitest';
 
 /**
  * Stale-if-error: when MeteoSwiss is unreachable, an expired page beats nothing.
@@ -18,7 +18,17 @@ import { describe, expect, it, beforeAll, jest } from '@jest/globals';
 const PAGE_URL = 'https://www.meteoswiss.admin.ch/weather/weather-and-climate-from-a-to-z/foehn.html';
 const html = `<!doctype html><html><head><title>T</title></head><body><main><h1>Föhn</h1><p>Last known good.</p></main></body></html>`;
 
-const fetchHtml = jest.fn<() => Promise<string>>();
+// vi.mock factories are hoisted above the declarations that use them, so the
+// mock fn must be created via vi.hoisted (vitest's unstable_mockModule
+// equivalent — the mock applies before the dynamic import in beforeAll).
+const fetchHtml = vi.hoisted(() => vi.fn<() => Promise<string>>());
+
+vi.mock('../../src/support/http-communication.js', () => ({
+  fetchHtml,
+  HttpRequestError: class HttpRequestError extends Error {
+    statusCode?: number;
+  },
+}));
 
 let fetchMeteoSwissContent: typeof import('../../src/data/meteoswiss-content-data.js').fetchMeteoSwissContent;
 
@@ -30,13 +40,6 @@ beforeAll(async () => {
   process.env.CONTENT_CACHE_TTL_MS = '120';
   // Generous revalidate window: this is the property under test.
   process.env.CONTENT_CACHE_SWR_MS = '600000';
-
-  jest.unstable_mockModule('../../src/support/http-communication.js', () => ({
-    fetchHtml,
-    HttpRequestError: class HttpRequestError extends Error {
-      statusCode?: number;
-    },
-  }));
 
   ({ fetchMeteoSwissContent } = await import('../../src/data/meteoswiss-content-data.js'));
 });

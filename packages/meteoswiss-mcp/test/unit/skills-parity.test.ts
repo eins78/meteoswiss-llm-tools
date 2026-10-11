@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 /**
  * Tests for the skills↔MCP parity structural gate (scripts/skills-parity-lib.ts).
  *

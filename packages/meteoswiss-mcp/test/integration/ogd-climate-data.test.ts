@@ -1,4 +1,4 @@
-import { describe, expect, it, jest, beforeAll, afterAll } from '@jest/globals';
+import { describe, expect, it , vi, beforeAll, afterAll } from 'vitest';
 import { MCPClient } from './mcp-client.js';
 
 describe('meteoswissClimateData Tool', () => {
@@ -12,7 +12,7 @@ describe('meteoswissClimateData Tool', () => {
 
   afterAll(async () => {
     await client.stop();
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('should be registered as meteoswissClimateData', async () => {

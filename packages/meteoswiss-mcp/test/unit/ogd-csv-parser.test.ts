@@ -1,4 +1,4 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 import { parseCsv, parseNumeric } from '../../src/support/ogd-csv-parser.js';
 
 describe('parseCsv', () => {

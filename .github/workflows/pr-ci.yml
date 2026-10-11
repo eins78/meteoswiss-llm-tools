@@ -37,13 +37,11 @@ jobs:
         run: pnpm --filter meteoswiss-mcp test
         env:
           USE_TEST_FIXTURES: true
-          NODE_OPTIONS: '--experimental-vm-modules'
 
       - name: Run integration tests
         run: pnpm --filter meteoswiss-mcp run test:integration
         env:
           USE_TEST_FIXTURES: true
-          NODE_OPTIONS: '--experimental-vm-modules'
 
   docker-build:
     name: Docker Build Test

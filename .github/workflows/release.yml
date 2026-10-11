@@ -45,13 +45,11 @@ jobs:
         run: pnpm --filter meteoswiss-mcp test
         env:
           USE_TEST_FIXTURES: 'true'
-          NODE_OPTIONS: '--experimental-vm-modules'
 
       - name: Integration tests
         run: pnpm --filter meteoswiss-mcp run test:integration
         env:
           USE_TEST_FIXTURES: 'true'
-          NODE_OPTIONS: '--experimental-vm-modules'
 
   publish-npm:
     name: Publish to npm

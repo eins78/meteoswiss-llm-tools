@@ -1,4 +1,4 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 import { scoreNameMatch, escapeRegex } from '../../src/support/name-matcher.js';
 
 describe('scoreNameMatch', () => {

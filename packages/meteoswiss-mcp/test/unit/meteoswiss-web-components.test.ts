@@ -1,4 +1,4 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 import { JSDOM } from 'jsdom';
 import fs from 'node:fs';
 import path from 'node:path';
