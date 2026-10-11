@@ -217,6 +217,7 @@ When implementing MCP tools:
 - `USE_TEST_FIXTURES`: When `true`, uses local test data instead of HTTP requests
 - `PORT`: Server port (default: 3000, not used in stdio mode)
 - `OGD_PARSE_CACHE_MAX_BYTES`: In-memory bound for parsed forecast indexes (default 134217728 = 128 MiB; one full station forecast run retains ~100 MB; `0` disables retention)
+- `OGD_PARSE_WORKERS`: Worker threads for building forecast indexes (default `min(2, cores - 1)`; `0` builds on the main thread)
 
 ### Configuration Management Strategy
 Fail fast with helpful error messages instead of silent fallbacks:
@@ -378,8 +379,16 @@ For a **skill-facing change** (anything under `packages/meteoswiss-skills/`), ad
   Single-flight covers the cold path too (one download + one parse for N concurrent callers). The
   byte bound (`OGD_PARSE_CACHE_MAX_BYTES`, default 128 MiB) is what releases an old forecast run: a
   new run is a new cache key, so the version check alone never would. A failed disk write returns
-  the built value un-memoised, same best-effort rule as `cacheWriteBestEffort`. Cost: the first,
-  cold parse is ~30% slower than before. Benchmark: `pnpm exec tsx scripts/bench-forecast.ts`.
+  the built value un-memoised, same best-effort rule as `cacheWriteBestEffort`. The cold parse is a
+  schema-specific byte scanner (`ogd-forecast-scan.ts`) over the file `Buffer`: it accepts only the
+  exact OGD layout (LF, unquoted, integer ids, plain decimals) and returns `null` on the first
+  deviating byte, so the generic `parseCsv` path (identical semantics) handles anything else. Don't
+  widen the scanner to "just handle" a new quirk: send it to the fallback. Large files are built on
+  up to `OGD_PARSE_WORKERS` worker threads (`ogd-forecast-pool.ts`); buffers are transferred, and a
+  worker failure re-reads the file and builds in-thread. The worker is loaded through a tsx
+  `register()` shim when running from `.ts` (a bare `.ts` worker cannot resolve `.js` specifiers).
+  Benchmarks: `scripts/bench-forecast.ts` (end to end), `scripts/bench-parse.ts` (parse only, with a
+  `--dump`/`--check` correctness fingerprint over every point of every file).
 - **`meteoswiss` prefix on tools**: LLM tool selection reliability — helps models distinguish weather tools from other MCP servers.
 
 ## References
