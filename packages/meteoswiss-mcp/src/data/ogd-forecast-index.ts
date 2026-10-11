@@ -5,37 +5,39 @@
  * reads a single point's series. Retaining parsed `CsvRow` objects would cost
  * hundreds of MB per file, so this keeps only what the forecast tool reads: for
  * each `(point_id, point_type_id)`, its timestamps (as indices into an interned
- * table) and values (NaN ⇔ missing).
+ * table) and values (NaN ⇔ missing), stored as two flat typed arrays with one
+ * `{ offset, length }` slice per point.
  *
- * Built by driving the shared `parseCsv` with a recording filter, so quoting,
- * trimming and `-`/empty → null semantics are identical to the uncached path.
+ * {@link buildForecastIndex} uses a schema-specific byte scan
+ * (`ogd-forecast-scan.ts`) when the file has the expected layout, and otherwise
+ * the shared `parseCsv` with a recording filter, so quoting, trimming and
+ * `-`/empty → null semantics stay identical to the uncached path.
  */
 
 import { parseCsv, parseNumeric, type CsvRow } from '../support/ogd-csv-parser.js';
 import type { MemoBuild } from './ogd-parse-memo.js';
-import { scanForecastCsv } from './ogd-forecast-scan.js';
+import { assembleIndex, scanForecastCsv } from './ogd-forecast-scan.js';
 
-/** One point's series: parallel arrays, in file order. */
-export type PointSeries = { timestamps: Uint32Array; values: Float64Array };
+/** One point's slice of the flat arrays, in file order. */
+export type PointSeries = { offset: number; length: number };
 
 /** Parsed index of one forecast CSV. */
 export type ForecastIndex = {
-  /** Interned `Date` strings, referenced by `PointSeries.timestamps`. */
+  /** Interned `Date` strings, referenced by `timestamps`. */
   timestampTable: string[];
+  /** Timestamp-table index per row, grouped by point. */
+  timestamps: Uint32Array;
+  /** Value per row (NaN = missing), grouped by point. */
+  values: Float64Array;
   points: Map<string, PointSeries>;
 };
-
-/** Approximate per-entry overhead of a Map key + object, beyond the typed arrays. */
-const POINT_OVERHEAD_BYTES = 160;
-/** Approximate retained size of one interned timestamp string. */
-const TIMESTAMP_BYTES = 48;
 
 function pointKey(pointId: string | null, pointTypeId: string | null): string {
   return `${pointId}:${pointTypeId}`;
 }
 
 /**
- * Build the index for one parameter file.
+ * Build the index with the shared generic CSV parser (any quoting/padding the parser accepts).
  *
  * @param csvText - Raw forecast CSV (`point_id;point_type_id;Date;<param>`)
  * @param param - Value column name, e.g. `tre200h0`
@@ -48,6 +50,7 @@ export function buildForecastIndexGeneric(
   const timestampTable: string[] = [];
   const timestampIds = new Map<string, number>();
   const building = new Map<string, { ts: number[]; vals: number[] }>();
+  let rows = 0;
 
   parseCsv(csvText, (row: CsvRow): boolean => {
     const date = row.Date ?? '';
@@ -65,18 +68,21 @@ export function buildForecastIndexGeneric(
     }
     series.ts.push(tsId);
     series.vals.push(parseNumeric(row[param] ?? null) ?? Number.NaN);
+    rows++;
     return false; // record only; retain no row objects
   });
 
+  const timestamps = new Uint32Array(rows);
+  const values = new Float64Array(rows);
   const points = new Map<string, PointSeries>();
-  let bytes = timestampTable.length * TIMESTAMP_BYTES;
+  let offset = 0;
   for (const [key, series] of building) {
-    const timestamps = Uint32Array.from(series.ts);
-    const values = Float64Array.from(series.vals);
-    points.set(key, { timestamps, values });
-    bytes += timestamps.byteLength + values.byteLength + POINT_OVERHEAD_BYTES;
+    timestamps.set(series.ts, offset);
+    values.set(series.vals, offset);
+    points.set(key, { offset, length: series.ts.length });
+    offset += series.ts.length;
   }
-  return { value: { timestampTable, points }, bytes };
+  return assembleIndex({ timestampTable, timestamps, values, points });
 }
 
 /**
@@ -115,9 +121,10 @@ export function lookupForecastSeries(
   const out = new Map<string, number | null>();
   const series = index.points.get(pointKey(pointId, pointTypeId));
   if (series === undefined) return out;
-  for (let i = 0; i < series.timestamps.length; i++) {
-    const value = series.values[i]!;
-    out.set(index.timestampTable[series.timestamps[i]!]!, Number.isNaN(value) ? null : value);
+  const end = series.offset + series.length;
+  for (let i = series.offset; i < end; i++) {
+    const value = index.values[i]!;
+    out.set(index.timestampTable[index.timestamps[i]!]!, Number.isNaN(value) ? null : value);
   }
   return out;
 }

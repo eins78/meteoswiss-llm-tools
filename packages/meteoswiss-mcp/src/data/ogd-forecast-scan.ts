@@ -24,7 +24,7 @@ const POW10 = [1, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12,
 const ID_TABLE_SIZE = 1 << 20;
 
 /** Approximate per-entry overhead of a Map key + object, beyond the typed arrays. */
-const POINT_OVERHEAD_BYTES = 160;
+const POINT_OVERHEAD_BYTES = 120;
 /** Approximate retained size of one interned timestamp string. */
 const TIMESTAMP_BYTES = 48;
 
@@ -161,24 +161,38 @@ export function scanForecastCsv(buf: Buffer, param: string): MemoBuild<ForecastI
     rows++;
   }
 
-  // Counting sort into per-point arrays, preserving file order within a point.
+  // Counting sort into flat arrays grouped by point, preserving file order within a point.
   const counts = new Uint32Array(pointKeys.length);
   for (let r = 0; r < rows; r++) counts[rowPoint[r]!]!++;
-  const timestamps = pointKeys.map((_, i) => new Uint32Array(counts[i]!));
-  const values = pointKeys.map((_, i) => new Float64Array(counts[i]!));
-  const fill = new Uint32Array(pointKeys.length);
-  for (let r = 0; r < rows; r++) {
-    const p = rowPoint[r]!;
-    const at = fill[p]!++;
-    timestamps[p]![at] = rowTs[r]!;
-    values[p]![at] = rowVal[r]!;
-  }
-
+  const next = new Uint32Array(pointKeys.length);
   const points = new Map<string, PointSeries>();
-  let bytes = timestampTable.length * TIMESTAMP_BYTES;
-  pointKeys.forEach((key, i) => {
-    points.set(key, { timestamps: timestamps[i]!, values: values[i]! });
-    bytes += timestamps[i]!.byteLength + values[i]!.byteLength + POINT_OVERHEAD_BYTES;
-  });
-  return { value: { timestampTable, points }, bytes };
+  let offset = 0;
+  for (let p = 0; p < pointKeys.length; p++) {
+    next[p] = offset;
+    points.set(pointKeys[p]!, { offset, length: counts[p]! });
+    offset += counts[p]!;
+  }
+  const timestamps = new Uint32Array(rows);
+  const values = new Float64Array(rows);
+  for (let r = 0; r < rows; r++) {
+    const at = next[rowPoint[r]!]!++;
+    timestamps[at] = rowTs[r]!;
+    values[at] = rowVal[r]!;
+  }
+  return assembleIndex({ timestampTable, timestamps, values, points });
+}
+
+/**
+ * Attach the retained-size estimate to a finished index.
+ *
+ * @param index - The finished index
+ * @returns The index with its approximate size in bytes
+ */
+export function assembleIndex(index: ForecastIndex): MemoBuild<ForecastIndex> {
+  const bytes =
+    index.timestampTable.length * TIMESTAMP_BYTES +
+    index.timestamps.byteLength +
+    index.values.byteLength +
+    index.points.size * POINT_OVERHEAD_BYTES;
+  return { value: index, bytes };
 }
