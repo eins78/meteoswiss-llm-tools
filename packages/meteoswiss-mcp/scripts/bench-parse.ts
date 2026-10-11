@@ -49,7 +49,7 @@ function fileFor(dir: string, param: string): string {
 async function buildAll(dir: string): Promise<Map<string, ReturnType<typeof buildForecastIndex>>> {
   const out = new Map<string, ReturnType<typeof buildForecastIndex>>();
   for (const param of PARAMS) {
-    out.set(param, buildForecastIndex(await fsp.readFile(fileFor(dir, param), 'utf-8'), param));
+    out.set(param, buildForecastIndex(await fsp.readFile(fileFor(dir, param)), param));
   }
   return out;
 }

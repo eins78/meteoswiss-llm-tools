@@ -13,9 +13,10 @@
 
 import { parseCsv, parseNumeric, type CsvRow } from '../support/ogd-csv-parser.js';
 import type { MemoBuild } from './ogd-parse-memo.js';
+import { scanForecastCsv } from './ogd-forecast-scan.js';
 
 /** One point's series: parallel arrays, in file order. */
-type PointSeries = { timestamps: Uint32Array; values: Float64Array };
+export type PointSeries = { timestamps: Uint32Array; values: Float64Array };
 
 /** Parsed index of one forecast CSV. */
 export type ForecastIndex = {
@@ -40,7 +41,10 @@ function pointKey(pointId: string | null, pointTypeId: string | null): string {
  * @param param - Value column name, e.g. `tre200h0`
  * @returns The index and its approximate retained size in bytes
  */
-export function buildForecastIndex(csvText: string, param: string): MemoBuild<ForecastIndex> {
+export function buildForecastIndexGeneric(
+  csvText: string,
+  param: string
+): MemoBuild<ForecastIndex> {
   const timestampTable: string[] = [];
   const timestampIds = new Map<string, number>();
   const building = new Map<string, { ts: number[]; vals: number[] }>();
@@ -73,6 +77,25 @@ export function buildForecastIndex(csvText: string, param: string): MemoBuild<Fo
     bytes += timestamps.byteLength + values.byteLength + POINT_OVERHEAD_BYTES;
   }
   return { value: { timestampTable, points }, bytes };
+}
+
+/**
+ * Build the index for one parameter file: the schema-specific byte scan when the file has the
+ * expected layout, the generic CSV parser (identical semantics, slower) otherwise.
+ *
+ * @param csv - Raw forecast CSV (`point_id;point_type_id;Date;<param>`), as bytes or text
+ * @param param - Value column name, e.g. `tre200h0`
+ * @returns The index and its approximate retained size in bytes
+ */
+export function buildForecastIndex(
+  csv: string | Uint8Array,
+  param: string
+): MemoBuild<ForecastIndex> {
+  const bytes =
+    typeof csv === 'string'
+      ? Buffer.from(csv, 'utf-8')
+      : Buffer.from(csv.buffer, csv.byteOffset, csv.byteLength);
+  return scanForecastCsv(bytes, param) ?? buildForecastIndexGeneric(bytes.toString('utf-8'), param);
 }
 
 /**
