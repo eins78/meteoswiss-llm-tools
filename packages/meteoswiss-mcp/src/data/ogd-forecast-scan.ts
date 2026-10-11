@@ -20,6 +20,9 @@ const DOT = 46;
 /** Exact powers of ten: `m / POW10[k]` with `m < 2^53` is correctly rounded, so it equals `Number("m.ddd")`. */
 const POW10 = [1, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15];
 
+/** Ids below this index the direct lookup table (4 MiB); the real ids stay under ~1 M. */
+const ID_TABLE_SIZE = 1 << 20;
+
 /** Approximate per-entry overhead of a Map key + object, beyond the typed arrays. */
 const POINT_OVERHEAD_BYTES = 160;
 /** Approximate retained size of one interned timestamp string. */
@@ -45,6 +48,8 @@ export function scanForecastCsv(buf: Buffer, param: string): MemoBuild<ForecastI
   const rowVal = new Float64Array(capacity);
   const pointIds = new Map<number, number>();
   const pointKeys: string[] = [];
+  const pointTypes: number[] = [];
+  const byId = new Int32Array(ID_TABLE_SIZE).fill(-1);
   const tsIds = new Map<number, number>();
   const timestampTable: string[] = [];
   let rows = 0;
@@ -125,12 +130,20 @@ export function scanForecastCsv(buf: Buffer, param: string): MemoBuild<ForecastI
     }
     pos++; // newline (or end of file)
 
-    const idKey = id * 256 + type;
-    let pointIdx = pointIds.get(idKey);
-    if (pointIdx === undefined) {
-      pointIdx = pointKeys.length;
-      pointIds.set(idKey, pointIdx);
-      pointKeys.push(`${id}:${type}`);
+    // Hot path: direct table by id, valid while the point's type matches.
+    let pointIdx = id < ID_TABLE_SIZE ? byId[id]! : -1;
+    if (pointIdx < 0 || pointTypes[pointIdx] !== type) {
+      const idKey = id * 256 + type;
+      const known = pointIds.get(idKey);
+      if (known === undefined) {
+        pointIdx = pointKeys.length;
+        pointIds.set(idKey, pointIdx);
+        pointKeys.push(`${id}:${type}`);
+        pointTypes.push(type);
+      } else {
+        pointIdx = known;
+      }
+      if (id < ID_TABLE_SIZE && byId[id] === -1) byId[id] = pointIdx;
     }
     if (ts !== lastTsNum) {
       let tsId = tsIds.get(ts);
