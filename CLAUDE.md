@@ -216,6 +216,7 @@ When implementing MCP tools:
 ## Environment Variables
 - `USE_TEST_FIXTURES`: When `true`, uses local test data instead of HTTP requests
 - `PORT`: Server port (default: 3000, not used in stdio mode)
+- `OGD_PARSE_CACHE_MAX_BYTES`: In-memory bound for parsed forecast indexes (default 134217728 = 128 MiB; one full station forecast run retains ~100 MB; `0` disables retention)
 
 ### Configuration Management Strategy
 Fail fast with helpful error messages instead of silent fallbacks:
@@ -370,6 +371,15 @@ For a **skill-facing change** (anything under `packages/meteoswiss-skills/`), ad
   window is what makes an unreachable upstream degrade to stale content. Pass `cachified` a
   `reporter` as its **second positional argument**; a `reporter` key inside the options object is
   silently ignored, and without one a failing background refresh logs nothing at all.
+- **Forecast CSVs are parsed once per cached file version** (`ogd-parse-memo.ts`,
+  `ogd-forecast-index.ts`, `getIndexedCsvData`): the disk cache holds raw text, so without this each
+  request re-parsed ~178 MB. The memo keeps a columnar per-point index (typed arrays, not `CsvRow`
+  objects: those cost hundreds of MB per file), keyed by cache key and versioned `mtimeMs:size`.
+  Single-flight covers the cold path too (one download + one parse for N concurrent callers). The
+  byte bound (`OGD_PARSE_CACHE_MAX_BYTES`, default 128 MiB) is what releases an old forecast run: a
+  new run is a new cache key, so the version check alone never would. A failed disk write returns
+  the built value un-memoised, same best-effort rule as `cacheWriteBestEffort`. Cost: the first,
+  cold parse is ~30% slower than before. Benchmark: `pnpm exec tsx scripts/bench-forecast.ts`.
 - **`meteoswiss` prefix on tools**: LLM tool selection reliability — helps models distinguish weather tools from other MCP servers.
 
 ## References
