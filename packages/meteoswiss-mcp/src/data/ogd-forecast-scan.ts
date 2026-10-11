@@ -40,12 +40,16 @@ export function scanForecastCsv(buf: Buffer, param: string): MemoBuild<ForecastI
   if (buf.length < header.length || !buf.subarray(0, header.length).equals(header)) return null;
 
   const len = buf.length;
-  let capacity = 1;
-  for (let p = buf.indexOf(NL, header.length); p !== -1; p = buf.indexOf(NL, p + 1)) capacity++;
+  // Estimate the row count from the first 64 KiB instead of counting every newline; grow on overflow.
+  const sampleEnd = Math.min(len, header.length + 65536);
+  let sampleRows = 0;
+  for (let i = header.length; i < sampleEnd; i++) if (buf[i] === NL) sampleRows++;
+  const avgRowBytes = sampleRows > 0 ? (sampleEnd - header.length) / sampleRows : 16;
+  let capacity = Math.ceil(((len - header.length) / avgRowBytes) * 1.05) + 1024;
 
-  const rowPoint = new Uint32Array(capacity);
-  const rowTs = new Uint32Array(capacity);
-  const rowVal = new Float64Array(capacity);
+  let rowPoint = new Uint32Array(capacity);
+  let rowTs = new Uint32Array(capacity);
+  let rowVal = new Float64Array(capacity);
   const pointIds = new Map<number, number>();
   const pointKeys: string[] = [];
   const pointTypes: number[] = [];
@@ -154,6 +158,18 @@ export function scanForecastCsv(buf: Buffer, param: string): MemoBuild<ForecastI
       }
       lastTsNum = ts;
       lastTsId = tsId;
+    }
+    if (rows === capacity) {
+      capacity = Math.ceil(capacity * 1.5);
+      const growPoint = new Uint32Array(capacity);
+      const growTs = new Uint32Array(capacity);
+      const growVal = new Float64Array(capacity);
+      growPoint.set(rowPoint);
+      growTs.set(rowTs);
+      growVal.set(rowVal);
+      rowPoint = growPoint;
+      rowTs = growTs;
+      rowVal = growVal;
     }
     rowPoint[rows] = pointIdx;
     rowTs[rows] = lastTsId;

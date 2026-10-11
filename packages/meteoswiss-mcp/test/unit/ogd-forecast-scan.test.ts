@@ -90,6 +90,19 @@ describe('forecast scan', () => {
     );
   });
 
+  it('grows its row arrays when the leading rows overestimate the row length', () => {
+    // Long rows in the first 64 KiB make the row-count estimate too low for the short rows after.
+    const long = Array.from(
+      { length: 3000 },
+      (_, i) => `${100000 + i};1;202601010000;123456789.123456`
+    );
+    const short = Array.from(
+      { length: 60000 },
+      (_, i) => `${i % 7};1;20260101${String(i % 24).padStart(2, '0')}00;1`
+    );
+    expect(expectSameAsGeneric([HEADER, ...long, ...short, ''].join('\n')).scanned).toBe(true);
+  });
+
   it('indexes several point types sharing one id', () => {
     const csv = [HEADER, '5;1;202601010000;1', '5;2;202601010000;2', '5;1;202601010100;3', ''].join(
       '\n'
