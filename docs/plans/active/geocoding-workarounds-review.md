@@ -1,0 +1,1 @@
+../2026-04-18-geocoding-workarounds-review.md
