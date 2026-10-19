@@ -124,10 +124,11 @@ export async function createHttpServer(
 
   const app = express();
 
-  // Trust the reverse proxy (Caddy) so `req.ip` reflects the real client via
-  // X-Forwarded-For instead of always resolving to the proxy's address. A fixed
-  // hop count is used deliberately — `trust proxy: true` would let clients spoof
-  // their IP by prepending a forged X-Forwarded-For, defeating per-IP rate limiting.
+  // Behind a reverse proxy (Caddy), TRUST_PROXY=1 makes `req.ip` the real client
+  // from X-Forwarded-For instead of the proxy address. The default is 0: a client
+  // that reaches the listener directly could otherwise rotate X-Forwarded-For to
+  // get a fresh rate-limit and session bucket per request. A fixed hop count is
+  // used deliberately — `trust proxy: true` would trust any forged chain.
   app.set('trust proxy', config.TRUST_PROXY);
 
   // Configure CORS for production.

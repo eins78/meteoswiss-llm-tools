@@ -82,7 +82,7 @@ const envSchema = z.object({
   TRUST_PROXY: z
     .string()
     .optional()
-    .default('1') // number of trusted proxy hops in front of the app (Caddy = 1)
+    .default('0') // trusted proxy hops in front of the app; set 1 behind one reverse proxy (Caddy)
     .transform((val) => parseInt(val, 10))
     .refine((val) => !isNaN(val) && val >= 0, {
       message: 'TRUST_PROXY must be a non-negative integer (number of proxy hops)',
