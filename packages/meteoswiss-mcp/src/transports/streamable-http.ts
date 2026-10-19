@@ -230,6 +230,10 @@ export async function createHttpServer(
     })
   );
 
+  // Initialize requests per client that passed the quota check but have not
+  // registered their session yet (see the per-client quota in POST /mcp).
+  const pendingInitByClient = new Map<string, number>();
+
   // Session manager for transport cleanup
   const sessionManager = new SessionManager(config.MAX_SESSIONS, config.SESSION_TIMEOUT_MS);
   debugTransport(
@@ -317,71 +321,90 @@ export async function createHttpServer(
 
       // For initialization requests (no session ID), create a new transport
       let isNewTransport = false;
-      if (!transport) {
-        if (req.method === 'POST') {
-          // Enforce the session cap here so it surfaces as a proper 503 up front.
-          // The manager also throws inside onsessioninitialized, but that path
-          // returns a generic 500 and can double-close the transport (FUN-13).
-          if (sessionManager.size >= config.MAX_SESSIONS) {
-            debugTransport('Session capacity reached (%d), rejecting', config.MAX_SESSIONS);
-            res.status(503).json({ error: 'Server capacity reached' });
-            return;
-          }
-          // Per-client quota, keyed like the rate limiter: without it one client
-          // can open every slot and keep them alive with pings, locking out all
-          // new clients while it keeps pinging.
-          const clientKey = rateLimitKey(req);
-          if (sessionManager.countForClient(clientKey) >= config.MAX_SESSIONS_PER_CLIENT) {
-            debugTransport('Per-client session quota reached for IP: %s', req.ip);
-            res.status(429).json({ error: 'Too many open sessions for this client' });
-            return;
-          }
-          // Could be an initialize request — create a new transport + server pair
-          try {
-            transport = await createAndRegisterTransport(
-              createMcpServer,
-              sessionManager,
-              clientKey
-            );
-            isNewTransport = true;
-            debugTransport('Created new transport for potential initialization');
-          } catch (error) {
-            console.error('Failed to create transport:', error);
-            debugTransport('Failed to create transport: %O', error);
-            res.status(503).json({ error: 'Server capacity reached' });
-            return;
-          }
-        } else {
-          // GET or DELETE without a valid session ID
-          res.status(400).json({
-            jsonrpc: '2.0',
-            error: { code: -32000, message: 'Bad Request: Mcp-Session-Id header is required' },
-            id: null,
-          });
-          return;
-        }
-      }
-
-      // Delegate to the transport — it handles all protocol details
+      let reservedClientKey: string | undefined;
       try {
-        await transport.handleRequest(req, res, req.body);
-      } catch (error) {
-        console.error('Error handling MCP request:', error);
-        debugTransport('Error handling MCP request: %O', error);
-        // Clean up newly created transports that failed during first request
-        if (isNewTransport) {
+        if (!transport) {
+          if (req.method === 'POST') {
+            // Enforce the session cap here so it surfaces as a proper 503 up front.
+            // The manager also throws inside onsessioninitialized, but that path
+            // returns a generic 500 and can double-close the transport (FUN-13).
+            if (sessionManager.size >= config.MAX_SESSIONS) {
+              debugTransport('Session capacity reached (%d), rejecting', config.MAX_SESSIONS);
+              res.status(503).json({ error: 'Server capacity reached' });
+              return;
+            }
+            // Per-client quota, keyed like the rate limiter: without it one client
+            // can open every slot and keep them alive with pings, locking out all
+            // new clients while it keeps pinging.
+            // The slot is reserved synchronously, before the first await: the
+            // session only registers later, inside handleRequest, so concurrent
+            // initializes would otherwise all pass this check.
+            const clientKey = rateLimitKey(req);
+            const pending = pendingInitByClient.get(clientKey) ?? 0;
+            if (
+              sessionManager.countForClient(clientKey) + pending >=
+              config.MAX_SESSIONS_PER_CLIENT
+            ) {
+              debugTransport('Per-client session quota reached for IP: %s', req.ip);
+              res.status(429).json({ error: 'Too many open sessions for this client' });
+              return;
+            }
+            pendingInitByClient.set(clientKey, pending + 1);
+            reservedClientKey = clientKey;
+            // Could be an initialize request — create a new transport + server pair
+            try {
+              transport = await createAndRegisterTransport(
+                createMcpServer,
+                sessionManager,
+                clientKey
+              );
+              isNewTransport = true;
+              debugTransport('Created new transport for potential initialization');
+            } catch (error) {
+              console.error('Failed to create transport:', error);
+              debugTransport('Failed to create transport: %O', error);
+              res.status(503).json({ error: 'Server capacity reached' });
+              return;
+            }
+          } else {
+            // GET or DELETE without a valid session ID
+            res.status(400).json({
+              jsonrpc: '2.0',
+              error: { code: -32000, message: 'Bad Request: Mcp-Session-Id header is required' },
+              id: null,
+            });
+            return;
+          }
+        }
+
+        // Delegate to the transport — it handles all protocol details
+        try {
+          await transport.handleRequest(req, res, req.body);
+        } catch (error) {
+          console.error('Error handling MCP request:', error);
+          debugTransport('Error handling MCP request: %O', error);
+          // Clean up newly created transports that failed during first request
+          if (isNewTransport) {
+            await transport.close();
+          }
+          // Only send error if response hasn't started
+          if (!res.headersSent) {
+            res.status(500).json({ error: 'Internal server error' });
+          }
+        }
+
+        // Clean up new transports that didn't initialize (e.g., non-initialize POST)
+        if (isNewTransport && !transport.sessionId) {
+          debugTransport('New transport did not initialize, cleaning up');
           await transport.close();
         }
-        // Only send error if response hasn't started
-        if (!res.headersSent) {
-          res.status(500).json({ error: 'Internal server error' });
+      } finally {
+        // By now the session is registered (and counted) or was never created.
+        if (reservedClientKey !== undefined) {
+          const left = (pendingInitByClient.get(reservedClientKey) ?? 1) - 1;
+          if (left > 0) pendingInitByClient.set(reservedClientKey, left);
+          else pendingInitByClient.delete(reservedClientKey);
         }
-      }
-
-      // Clean up new transports that didn't initialize (e.g., non-initialize POST)
-      if (isNewTransport && !transport.sessionId) {
-        debugTransport('New transport did not initialize, cleaning up');
-        await transport.close();
       }
     })
   );
@@ -446,7 +469,9 @@ export async function createHttpServer(
     if (isBodyParserError(err)) {
       debugTransport('Request body rejected on %s %s: %s', req.method, req.path, err.type);
       if (err.type === 'entity.parse.failed') {
-        res.status(400).json({ jsonrpc: '2.0', error: { code: -32700, message: 'Parse error' }, id: null });
+        res
+          .status(400)
+          .json({ jsonrpc: '2.0', error: { code: -32700, message: 'Parse error' }, id: null });
       } else {
         res.status(err.status).json({ error: 'Request body rejected' });
       }

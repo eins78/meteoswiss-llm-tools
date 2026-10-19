@@ -5,8 +5,12 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AddressInfo } from 'node:net';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { createServer } from '../../src/server.js';
-import { createHttpServer, type HttpServerInterface } from '../../src/transports/streamable-http.js';
+import {
+  createHttpServer,
+  type HttpServerInterface,
+} from '../../src/transports/streamable-http.js';
 import { validateEnv } from '../../src/support/environment-validation.js';
 
 let running: HttpServerInterface | undefined;
@@ -18,11 +22,14 @@ afterEach(() => {
 });
 
 /** Start a server with the given env overrides; returns its base URL. */
-async function start(env: Record<string, string> = {}): Promise<string> {
+async function start(
+  env: Record<string, string> = {},
+  factory: () => McpServer = createServer
+): Promise<string> {
   vi.stubEnv('BIND_ADDRESS', '127.0.0.1');
   for (const [k, v] of Object.entries(env)) vi.stubEnv(k, v);
   const config = validateEnv();
-  running = await createHttpServer(createServer, { port: 0, config });
+  running = await createHttpServer(factory, { port: 0, config });
   await running.start();
   const server = (running.app as unknown as { __server: { address(): AddressInfo } }).__server;
   return `http://127.0.0.1:${server.address().port}`;
@@ -60,7 +67,9 @@ describe('TRUST_PROXY', () => {
     const base = await start({ RATE_LIMIT_MAX_REQUESTS: '3' });
     const statuses: number[] = [];
     for (let i = 0; i < 6; i++) {
-      const res = await fetch(`${base}/health`, { headers: { 'x-forwarded-for': `203.0.113.${i}` } });
+      const res = await fetch(`${base}/health`, {
+        headers: { 'x-forwarded-for': `203.0.113.${i}` },
+      });
       await res.arrayBuffer();
       statuses.push(res.status);
     }
@@ -131,8 +140,16 @@ describe('JSON-RPC batches', () => {
   it('charges every message of a batch to the client rate-limit bucket', async () => {
     const base = await start({ RATE_LIMIT_MAX_REQUESTS: '10' });
     const { sessionId } = await openSession(base); // 1 hit
-    const headers = { ...MCP_HEADERS, 'mcp-session-id': sessionId!, 'mcp-protocol-version': '2025-11-25' };
-    const res = await fetch(`${base}/mcp`, { method: 'POST', headers, body: JSON.stringify(batch(20)) });
+    const headers = {
+      ...MCP_HEADERS,
+      'mcp-session-id': sessionId!,
+      'mcp-protocol-version': '2025-11-25',
+    };
+    const res = await fetch(`${base}/mcp`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(batch(20)),
+    });
     await res.arrayBuffer();
     expect(res.status).toBe(429);
   });
@@ -140,8 +157,16 @@ describe('JSON-RPC batches', () => {
   it('still serves a batch that fits in the remaining quota', async () => {
     const base = await start({ RATE_LIMIT_MAX_REQUESTS: '10' });
     const { sessionId } = await openSession(base);
-    const headers = { ...MCP_HEADERS, 'mcp-session-id': sessionId!, 'mcp-protocol-version': '2025-11-25' };
-    const res = await fetch(`${base}/mcp`, { method: 'POST', headers, body: JSON.stringify(batch(3)) });
+    const headers = {
+      ...MCP_HEADERS,
+      'mcp-session-id': sessionId!,
+      'mcp-protocol-version': '2025-11-25',
+    };
+    const res = await fetch(`${base}/mcp`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(batch(3)),
+    });
     await res.arrayBuffer();
     expect(res.status).toBe(200);
     const after = await fetch(`${base}/health`);
@@ -164,13 +189,37 @@ describe('per-client session quota', () => {
     expect(other.sessionId).toBeTruthy();
   });
 
+  it('holds under concurrent initialize requests from one client', async () => {
+    // Delay connect() by a timer so concurrent requests interleave between the
+    // quota check and the session registration, as slow I/O would.
+    const slowServer = (): McpServer => {
+      const server = createServer();
+      const connect = server.connect.bind(server);
+      server.connect = async (transport) => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        return connect(transport);
+      };
+      return server;
+    };
+    const base = await start({ MAX_SESSIONS_PER_CLIENT: '2' }, slowServer);
+    const results = await Promise.all(Array.from({ length: 40 }, () => openSession(base)));
+    expect(results.filter((r) => r.status === 200)).toHaveLength(2);
+    expect(results.filter((r) => r.status === 429)).toHaveLength(38);
+    const health = await (await fetch(`${base}/health`)).json();
+    expect(health.sessions).toBe(2);
+  });
+
   it('frees the quota when the client closes a session', async () => {
     const base = await start({ MAX_SESSIONS_PER_CLIENT: '1' });
     const { sessionId } = await openSession(base);
     expect((await openSession(base)).status).toBe(429);
     const del = await fetch(`${base}/mcp`, {
       method: 'DELETE',
-      headers: { ...MCP_HEADERS, 'mcp-session-id': sessionId!, 'mcp-protocol-version': '2025-11-25' },
+      headers: {
+        ...MCP_HEADERS,
+        'mcp-session-id': sessionId!,
+        'mcp-protocol-version': '2025-11-25',
+      },
     });
     await del.arrayBuffer();
     expect((await openSession(base)).status).toBe(200);

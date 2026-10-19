@@ -31,7 +31,10 @@ describe('tool error logging', () => {
   /** Every stderr line written so far, split the way a log collector would. */
   const stderrLines = (): string[] =>
     errorSpy.mock.calls.flatMap((args) =>
-      args.map((a) => (a instanceof Error ? (a.stack ?? a.message) : String(a))).join(' ').split('\n')
+      args
+        .map((a) => (a instanceof Error ? (a.stack ?? a.message) : String(a)))
+        .join(' ')
+        .split('\n')
     );
 
   it.each([
