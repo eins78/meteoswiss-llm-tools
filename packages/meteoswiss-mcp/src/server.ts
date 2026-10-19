@@ -55,6 +55,20 @@ function logSafe(value: unknown, maxLength = 200): string {
 }
 
 /**
+ * Log a tool failure as one sanitized stderr line. Resolver errors embed the raw
+ * tool argument in their message, so logging the Error object itself would let a
+ * newline in that argument forge further log lines (SEC-10 on the error path).
+ * The full error, stack included, goes to the debug logger only.
+ *
+ * @param label - Fixed, non-user text identifying the tool
+ * @param error - The caught error
+ */
+function logToolError(label: string, error: unknown): void {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`${label}: ${logSafe(message, 500)}`);
+}
+
+/**
  * Create and configure the MeteoSwiss MCP server
  * @returns Configured MCP server instance
  */
@@ -70,7 +84,7 @@ export function createServer(): McpServer {
 
   // Register error handler
   server.server.onerror = (error: Error) => {
-    console.error('[MCP Server Error]', error);
+    console.error(`[MCP Server Error] ${logSafe(error.message, 500)}`);
     debugServer('Server error: %O', error);
     debugServer('Error stack: %s', error.stack);
   };
@@ -113,7 +127,7 @@ export function createServer(): McpServer {
           structuredContent: results,
         };
       } catch (error: unknown) {
-        console.error('Error in search tool:', error);
+        logToolError('Error in search tool', error);
         debugTools('Error in search: %O', error);
         recordToolCall('search', performance.now() - _t0);
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -161,7 +175,7 @@ export function createServer(): McpServer {
           structuredContent: content,
         };
       } catch (error: unknown) {
-        console.error('Error in fetch tool:', error);
+        logToolError('Error in fetch tool', error);
         debugTools('Error in fetch: %O', error);
         recordToolCall('fetch', performance.now() - _t0);
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -244,7 +258,7 @@ useful for judging *when* rain, sun, or wind is expected, not just the daily sum
           structuredContent: result,
         };
       } catch (error: unknown) {
-        console.error('Error in getLocalForecast tool:', error);
+        logToolError('Error in getLocalForecast tool', error);
         debugTools('Error in getLocalForecast: %O', error);
         recordToolCall('meteoswissLocalForecast', performance.now() - _t0);
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -289,7 +303,7 @@ Accepts station names ("Zurich"), abbreviations ("SMA"), addresses ("Bahnhofplat
           structuredContent: result,
         };
       } catch (error: unknown) {
-        console.error('Error in meteoswissCurrentWeather tool:', error);
+        logToolError('Error in meteoswissCurrentWeather tool', error);
         debugTools('Error in getCurrentWeather: %O', error);
         recordToolCall('meteoswissCurrentWeather', performance.now() - _t0);
         return {
@@ -329,7 +343,7 @@ Accepts station names ("Zurich"), abbreviations ("SMA"), addresses ("Bahnhofplat
           structuredContent: result,
         };
       } catch (error: unknown) {
-        console.error('Error in meteoswissStations tool:', error);
+        logToolError('Error in meteoswissStations tool', error);
         debugTools('Error in listStations: %O', error);
         recordToolCall('meteoswissStations', performance.now() - _t0);
         return {
@@ -369,7 +383,7 @@ Accepts station names ("Zurich"), abbreviations ("SMA"), addresses ("Bahnhofplat
           structuredContent: result,
         };
       } catch (error: unknown) {
-        console.error('Error in meteoswissPollenData tool:', error);
+        logToolError('Error in meteoswissPollenData tool', error);
         debugTools('Error in getPollenData: %O', error);
         recordToolCall('meteoswissPollenData', performance.now() - _t0);
         return {
@@ -415,7 +429,7 @@ Accepts station names ("Zurich", "Basel"), abbreviations ("SMA", "BAS"), or WGS8
           structuredContent: result,
         };
       } catch (error: unknown) {
-        console.error('Error in meteoswissClimateData tool:', error);
+        logToolError('Error in meteoswissClimateData tool', error);
         debugTools('Error in getClimateData: %O', error);
         recordToolCall('meteoswissClimateData', performance.now() - _t0);
         return {
