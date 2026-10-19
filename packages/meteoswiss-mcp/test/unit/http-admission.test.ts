@@ -76,3 +76,44 @@ describe('TRUST_PROXY', () => {
     }
   });
 });
+
+describe('middleware order and request bodies', () => {
+  it('refuses an over-quota client before parsing its body', async () => {
+    const base = await start({ RATE_LIMIT_MAX_REQUESTS: '1' });
+    await (await fetch(`${base}/health`)).arrayBuffer();
+    // Malformed JSON would be a 400 from the parser; the limiter must answer first.
+    const res = await fetch(`${base}/mcp`, { method: 'POST', headers: MCP_HEADERS, body: '{' });
+    await res.arrayBuffer();
+    expect(res.status).toBe(429);
+  });
+
+  it('answers malformed JSON with 400 Parse error, not 500', async () => {
+    const base = await start();
+    const res = await fetch(`${base}/mcp`, { method: 'POST', headers: MCP_HEADERS, body: '{' });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: { code: -32700 } });
+  });
+
+  it('refuses a compressed body with 415 instead of inflating it', async () => {
+    const { gzipSync } = await import('node:zlib');
+    const base = await start();
+    const res = await fetch(`${base}/mcp`, {
+      method: 'POST',
+      headers: { ...MCP_HEADERS, 'content-encoding': 'gzip' },
+      body: gzipSync(JSON.stringify(initialize())),
+    });
+    await res.arrayBuffer();
+    expect(res.status).toBe(415);
+  });
+
+  it('answers an oversize body with 413', async () => {
+    const base = await start({ REQUEST_SIZE_LIMIT: '1kb' });
+    const res = await fetch(`${base}/mcp`, {
+      method: 'POST',
+      headers: MCP_HEADERS,
+      body: JSON.stringify({ ...initialize(), pad: 'x'.repeat(4096) }),
+    });
+    await res.arrayBuffer();
+    expect(res.status).toBe(413);
+  });
+});

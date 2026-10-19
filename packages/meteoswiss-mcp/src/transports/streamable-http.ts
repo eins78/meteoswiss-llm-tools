@@ -50,6 +50,26 @@ const ADVERTISED_TOOLS = [
   'fetch',
 ] as const;
 
+/** Error shape raised by Express's body parser (`type` such as `entity.too.large`). */
+interface BodyParserError {
+  status: number;
+  type: string;
+}
+
+/** Type guard for {@link BodyParserError}: a 4xx error carrying a body-parser `type`. */
+function isBodyParserError(err: unknown): err is BodyParserError {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'status' in err &&
+    'type' in err &&
+    typeof err.status === 'number' &&
+    err.status >= 400 &&
+    err.status < 500 &&
+    typeof err.type === 'string'
+  );
+}
+
 /** HTTP server interface returned by {@link createHttpServer} */
 export interface HttpServerInterface {
   app: express.Application;
@@ -143,9 +163,6 @@ export async function createHttpServer(
     })
   );
 
-  // Configure request size limit
-  app.use(express.json({ limit: config.REQUEST_SIZE_LIMIT }));
-
   // Configure rate limiting
   const limiter = rateLimit({
     windowMs: config.RATE_LIMIT_WINDOW_MS,
@@ -159,8 +176,15 @@ export async function createHttpServer(
     },
   });
 
-  // Apply rate limiting to all routes
+  // Apply rate limiting to all routes. It runs before the body parser, so a
+  // client over its quota is refused before the server reads or parses its body.
   app.use(limiter);
+
+  // Parse JSON bodies only where they are read (POST /mcp), with the size limit
+  // applied to the bytes on the wire. Compressed bodies are refused (415) rather
+  // than inflated: MCP clients do not compress requests, and inflating would let
+  // a small body cost up to REQUEST_SIZE_LIMIT of CPU and memory.
+  app.use('/mcp', express.json({ limit: config.REQUEST_SIZE_LIMIT, inflate: false }));
 
   // Request counting (before route handlers)
   app.use((req: Request, _res: Response, next: NextFunction) => {
@@ -373,6 +397,17 @@ export async function createHttpServer(
 
   // Global error handler
   app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
+    // Body-parser rejections are client errors: answer with their own status
+    // (400 malformed JSON, 413 too large, 415 compressed or wrong charset).
+    if (isBodyParserError(err)) {
+      debugTransport('Request body rejected on %s %s: %s', req.method, req.path, err.type);
+      if (err.type === 'entity.parse.failed') {
+        res.status(400).json({ jsonrpc: '2.0', error: { code: -32700, message: 'Parse error' }, id: null });
+      } else {
+        res.status(err.status).json({ error: 'Request body rejected' });
+      }
+      return;
+    }
     console.error('Unhandled error:', err);
     debugTransport('Unhandled error on %s %s: %O', req.method, req.path, err);
     res.status(500).json({ error: 'Internal server error' });
