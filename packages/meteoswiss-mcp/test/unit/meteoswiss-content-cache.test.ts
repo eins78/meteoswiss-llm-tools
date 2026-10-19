@@ -102,3 +102,26 @@ describe('converted-page cache', () => {
     expect(second.text).toContain('Do not clobber.');
   });
 });
+
+describe('cache key canonicalisation', () => {
+  it('serves query and fragment variants of one page from one cache entry', async () => {
+    fetchHtml.mockResolvedValue(htmlFor('<p>One page.</p>'));
+
+    const variants = [
+      PAGE_URL,
+      `${PAGE_URL}?a=1`,
+      `${PAGE_URL}?a=2&b=3`,
+      `${PAGE_URL}#x1`,
+      `${PAGE_URL}?a=4#x2`,
+      PAGE_URL.replace('https://', 'https://user:pw@'),
+    ];
+    for (const id of variants) {
+      const page = await fetchMeteoSwissContent({ id, format: 'text' });
+      expect(page.text).toContain('One page.');
+    }
+
+    // Before: one upstream fetch per variant. Now: one for the page.
+    expect(fetchHtml).toHaveBeenCalledTimes(1);
+    expect(fetchHtml.mock.calls[0]?.[0]).toBe(PAGE_URL);
+  });
+});
