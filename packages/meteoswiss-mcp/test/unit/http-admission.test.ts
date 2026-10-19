@@ -76,6 +76,23 @@ describe('TRUST_PROXY', () => {
     expect(statuses).toEqual([200, 200, 200, 429, 429, 429]);
   });
 
+  it('warns once when a forwarded request arrives with TRUST_PROXY=0', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const base = await start();
+      for (let i = 0; i < 3; i++) {
+        const res = await fetch(`${base}/health`, {
+          headers: { 'x-forwarded-for': '203.0.113.9' },
+        });
+        await res.arrayBuffer();
+      }
+      const warnings = errorSpy.mock.calls.filter((c) => String(c[0]).includes('TRUST_PROXY=0'));
+      expect(warnings).toHaveLength(1);
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
   it('honours one proxy hop when TRUST_PROXY=1 is set explicitly', async () => {
     const base = await start({ RATE_LIMIT_MAX_REQUESTS: '1', TRUST_PROXY: '1' });
     for (const ip of ['203.0.113.1', '203.0.113.2']) {
@@ -152,6 +169,8 @@ describe('JSON-RPC batches', () => {
     });
     await res.arrayBuffer();
     expect(res.status).toBe(429);
+    expect(res.headers.get('ratelimit-remaining')).toBe('0');
+    expect(Number(res.headers.get('retry-after'))).toBeGreaterThan(0);
   });
 
   it('still serves a batch that fits in the remaining quota', async () => {
@@ -169,6 +188,8 @@ describe('JSON-RPC batches', () => {
     });
     await res.arrayBuffer();
     expect(res.status).toBe(200);
+    // The batch response itself states the batch charge: 1 initialize + 3 messages = 4 of 10.
+    expect(res.headers.get('ratelimit-remaining')).toBe('6');
     const after = await fetch(`${base}/health`);
     await after.arrayBuffer();
     // 1 initialize + 3 batch messages + this request = 5 of 10

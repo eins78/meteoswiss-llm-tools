@@ -152,6 +152,24 @@ export async function createHttpServer(
   // used deliberately — `trust proxy: true` would trust any forged chain.
   app.set('trust proxy', config.TRUST_PROXY);
 
+  // A proxy in front with TRUST_PROXY=0 makes every client share the proxy's
+  // rate-limit bucket and session quota. Say so once, the first time a
+  // forwarded request arrives, instead of failing silently.
+  if (config.TRUST_PROXY === 0) {
+    let warned = false;
+    app.use((req: Request, _res: Response, next: NextFunction) => {
+      if (!warned && req.headers['x-forwarded-for'] !== undefined) {
+        warned = true;
+        console.error(
+          'Warning: X-Forwarded-For received but TRUST_PROXY=0. If this server runs behind a ' +
+            'reverse proxy, set TRUST_PROXY to its hop count (1 for one proxy), or all clients ' +
+            'share one rate-limit bucket and one session quota.'
+        );
+      }
+      next();
+    });
+  }
+
   // Configure CORS for production.
   // credentials is deliberately false: this is a public, read-only service with
   // no cookies/auth, and reflecting an arbitrary Origin *with* credentials is the
@@ -218,11 +236,23 @@ export async function createHttpServer(
       }
       const key = rateLimitKey(req);
       let totalHits = 0;
+      let resetTime: Date | undefined;
       for (let i = 1; i < body.length; i++) {
-        totalHits = (await rateLimitStore.increment(key)).totalHits;
+        ({ totalHits, resetTime } = await rateLimitStore.increment(key));
       }
+      // The limiter already set its headers for one hit; restate them for the batch.
+      res.setHeader(
+        'RateLimit-Remaining',
+        String(Math.max(0, config.RATE_LIMIT_MAX_REQUESTS - totalHits))
+      );
       if (totalHits > config.RATE_LIMIT_MAX_REQUESTS) {
         debugTransport('Rate limit exceeded by a %d-message batch for IP: %s', body.length, req.ip);
+        if (resetTime) {
+          res.setHeader(
+            'Retry-After',
+            String(Math.max(0, Math.ceil((resetTime.getTime() - Date.now()) / 1000)))
+          );
+        }
         res.status(429).json({ error: 'Too many requests, please try again later.' });
         return;
       }
