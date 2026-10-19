@@ -117,3 +117,36 @@ describe('middleware order and request bodies', () => {
     expect(res.status).toBe(413);
   });
 });
+
+describe('JSON-RPC batches', () => {
+  /** A batch of `n` stations calls (protocol 2025-11-25, inside an open session). */
+  const batch = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      jsonrpc: '2.0',
+      id: 100 + i,
+      method: 'tools/call',
+      params: { name: 'meteoswissStations', arguments: { search: 'Zürich' } },
+    }));
+
+  it('charges every message of a batch to the client rate-limit bucket', async () => {
+    const base = await start({ RATE_LIMIT_MAX_REQUESTS: '10' });
+    const { sessionId } = await openSession(base); // 1 hit
+    const headers = { ...MCP_HEADERS, 'mcp-session-id': sessionId!, 'mcp-protocol-version': '2025-11-25' };
+    const res = await fetch(`${base}/mcp`, { method: 'POST', headers, body: JSON.stringify(batch(20)) });
+    await res.arrayBuffer();
+    expect(res.status).toBe(429);
+  });
+
+  it('still serves a batch that fits in the remaining quota', async () => {
+    const base = await start({ RATE_LIMIT_MAX_REQUESTS: '10' });
+    const { sessionId } = await openSession(base);
+    const headers = { ...MCP_HEADERS, 'mcp-session-id': sessionId!, 'mcp-protocol-version': '2025-11-25' };
+    const res = await fetch(`${base}/mcp`, { method: 'POST', headers, body: JSON.stringify(batch(3)) });
+    await res.arrayBuffer();
+    expect(res.status).toBe(200);
+    const after = await fetch(`${base}/health`);
+    await after.arrayBuffer();
+    // 1 initialize + 3 batch messages + this request = 5 of 10
+    expect(after.headers.get('ratelimit-remaining')).toBe('5');
+  });
+});

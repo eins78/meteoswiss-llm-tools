@@ -19,7 +19,7 @@ import express, { type Request, type Response, type NextFunction } from 'express
 import cors from 'cors';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator, MemoryStore } from 'express-rate-limit';
 import { SessionManager } from '../support/session-management.js';
 import type { EnvConfig } from '../support/environment-validation.js';
 import { renderHomepage } from '../support/markdown-rendering.js';
@@ -163,10 +163,15 @@ export async function createHttpServer(
     })
   );
 
-  // Configure rate limiting
+  // Configure rate limiting. The store and key are explicit so the batch check
+  // below can charge extra messages to the same client bucket.
+  const rateLimitStore = new MemoryStore();
+  const rateLimitKey = (req: Request): string => ipKeyGenerator(req.ip ?? 'unknown');
   const limiter = rateLimit({
     windowMs: config.RATE_LIMIT_WINDOW_MS,
     max: config.RATE_LIMIT_MAX_REQUESTS,
+    store: rateLimitStore,
+    keyGenerator: rateLimitKey,
     message: 'Too many requests, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
@@ -198,6 +203,31 @@ export async function createHttpServer(
     (req: Request, res: Response, next: NextFunction) => {
       Promise.resolve(fn(req, res, next)).catch(next);
     };
+
+  // A JSON-RPC batch carries up to 100 messages in one HTTP request, and the SDK
+  // runs each one. The limiter counted the request once; charge every further
+  // message to the same bucket so a batch cannot multiply the per-client quota.
+  app.use(
+    '/mcp',
+    asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+      const body: unknown = req.body;
+      if (req.method !== 'POST' || !Array.isArray(body) || body.length <= 1) {
+        next();
+        return;
+      }
+      const key = rateLimitKey(req);
+      let totalHits = 0;
+      for (let i = 1; i < body.length; i++) {
+        totalHits = (await rateLimitStore.increment(key)).totalHits;
+      }
+      if (totalHits > config.RATE_LIMIT_MAX_REQUESTS) {
+        debugTransport('Rate limit exceeded by a %d-message batch for IP: %s', body.length, req.ip);
+        res.status(429).json({ error: 'Too many requests, please try again later.' });
+        return;
+      }
+      next();
+    })
+  );
 
   // Session manager for transport cleanup
   const sessionManager = new SessionManager(config.MAX_SESSIONS, config.SESSION_TIMEOUT_MS);
