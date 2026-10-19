@@ -90,6 +90,7 @@ The server supports extensive configuration through environment variables:
 
 ### Session Management
 - `MAX_SESSIONS` - Maximum concurrent SSE sessions (default: 100)
+- `MAX_SESSIONS_PER_CLIENT` - Maximum concurrent sessions per client IP (default: 10)
 - `SESSION_TIMEOUT_MS` - Session timeout in milliseconds (default: 300000)
 
 ### Rate Limiting

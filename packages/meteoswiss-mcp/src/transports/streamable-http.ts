@@ -88,13 +88,14 @@ export interface HttpServerInterface {
  */
 async function createAndRegisterTransport(
   createMcpServer: () => McpServer,
-  sessionManager: SessionManager
+  sessionManager: SessionManager,
+  clientKey: string
 ): Promise<StreamableHTTPServerTransport> {
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => randomUUID(),
     onsessioninitialized: (sessionId: string) => {
       debugTransport('Session initialized: %s', sessionId);
-      sessionManager.add(sessionId, transport);
+      sessionManager.add(sessionId, transport, clientKey);
       console.error(`New session initialized: ${sessionId}`);
     },
   });
@@ -326,9 +327,22 @@ export async function createHttpServer(
             res.status(503).json({ error: 'Server capacity reached' });
             return;
           }
+          // Per-client quota, keyed like the rate limiter: without it one client
+          // can open every slot and keep them alive with pings, locking out all
+          // new clients while it keeps pinging.
+          const clientKey = rateLimitKey(req);
+          if (sessionManager.countForClient(clientKey) >= config.MAX_SESSIONS_PER_CLIENT) {
+            debugTransport('Per-client session quota reached for IP: %s', req.ip);
+            res.status(429).json({ error: 'Too many open sessions for this client' });
+            return;
+          }
           // Could be an initialize request — create a new transport + server pair
           try {
-            transport = await createAndRegisterTransport(createMcpServer, sessionManager);
+            transport = await createAndRegisterTransport(
+              createMcpServer,
+              sessionManager,
+              clientKey
+            );
             isNewTransport = true;
             debugTransport('Created new transport for potential initialization');
           } catch (error) {

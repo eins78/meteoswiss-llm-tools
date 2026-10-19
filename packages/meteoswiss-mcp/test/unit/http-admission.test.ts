@@ -150,3 +150,29 @@ describe('JSON-RPC batches', () => {
     expect(after.headers.get('ratelimit-remaining')).toBe('5');
   });
 });
+
+describe('per-client session quota', () => {
+  it('stops one client from taking every session slot', async () => {
+    const base = await start({ MAX_SESSIONS: '3', MAX_SESSIONS_PER_CLIENT: '2', TRUST_PROXY: '1' });
+    const attacker = { 'x-forwarded-for': '198.51.100.7' };
+    expect((await openSession(base, attacker)).status).toBe(200);
+    expect((await openSession(base, attacker)).status).toBe(200);
+    expect((await openSession(base, attacker)).status).toBe(429);
+    // The last global slot is still free for someone else.
+    const other = await openSession(base, { 'x-forwarded-for': '198.51.100.8' });
+    expect(other.status).toBe(200);
+    expect(other.sessionId).toBeTruthy();
+  });
+
+  it('frees the quota when the client closes a session', async () => {
+    const base = await start({ MAX_SESSIONS_PER_CLIENT: '1' });
+    const { sessionId } = await openSession(base);
+    expect((await openSession(base)).status).toBe(429);
+    const del = await fetch(`${base}/mcp`, {
+      method: 'DELETE',
+      headers: { ...MCP_HEADERS, 'mcp-session-id': sessionId!, 'mcp-protocol-version': '2025-11-25' },
+    });
+    await del.arrayBuffer();
+    expect((await openSession(base)).status).toBe(200);
+  });
+});
