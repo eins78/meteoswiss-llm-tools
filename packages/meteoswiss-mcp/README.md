@@ -139,7 +139,9 @@ The server will be available at `http://localhost:3000`. MCP endpoint: `http://l
 | `USE_TEST_FIXTURES` | `false` | Use local test data instead of live API |
 | `BIND_ADDRESS` | `0.0.0.0` | Interface to bind to |
 | `MAX_SESSIONS` | `100` | Maximum concurrent sessions |
+| `MAX_SESSIONS_PER_CLIENT` | `10` | Maximum concurrent sessions per client IP (as seen through `TRUST_PROXY`); further initialize requests get 429 |
 | `SESSION_TIMEOUT_MS` | `300000` | Session timeout in milliseconds |
+| `TRUST_PROXY` | `0` | Number of reverse-proxy hops to trust for the client IP (`X-Forwarded-For`). Set `1` behind one proxy such as Caddy; leave `0` when clients reach the server directly, or they can spoof their IP past the rate limit |
 | `DEBUG` | — | Debug namespaces (e.g. `mcp:*`) |
 
 ---

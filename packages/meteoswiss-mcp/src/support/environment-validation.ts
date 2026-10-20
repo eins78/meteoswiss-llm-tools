@@ -53,6 +53,14 @@ const envSchema = z.object({
     .refine((val) => !isNaN(val) && val > 0, {
       message: 'MAX_SESSIONS must be a positive number',
     }),
+  MAX_SESSIONS_PER_CLIENT: z
+    .string()
+    .optional()
+    .default('10')
+    .transform((val) => parseInt(val, 10))
+    .refine((val) => !isNaN(val) && val > 0, {
+      message: 'MAX_SESSIONS_PER_CLIENT must be a positive number',
+    }),
   SESSION_TIMEOUT_MS: z
     .string()
     .optional()
@@ -82,7 +90,7 @@ const envSchema = z.object({
   TRUST_PROXY: z
     .string()
     .optional()
-    .default('1') // number of trusted proxy hops in front of the app (Caddy = 1)
+    .default('0') // trusted proxy hops in front of the app; set 1 behind one reverse proxy (Caddy)
     .transform((val) => parseInt(val, 10))
     .refine((val) => !isNaN(val) && val >= 0, {
       message: 'TRUST_PROXY must be a non-negative integer (number of proxy hops)',
@@ -122,6 +130,7 @@ export function validateEnv(): EnvConfig {
     NODE_ENV: process.env.NODE_ENV,
     BIND_ADDRESS: process.env.BIND_ADDRESS,
     MAX_SESSIONS: process.env.MAX_SESSIONS,
+    MAX_SESSIONS_PER_CLIENT: process.env.MAX_SESSIONS_PER_CLIENT,
     SESSION_TIMEOUT_MS: process.env.SESSION_TIMEOUT_MS,
     RATE_LIMIT_WINDOW_MS: process.env.RATE_LIMIT_WINDOW_MS,
     RATE_LIMIT_MAX_REQUESTS: process.env.RATE_LIMIT_MAX_REQUESTS,
@@ -148,6 +157,7 @@ export function validateEnv(): EnvConfig {
           `  BIND_ADDRESS=0.0.0.0\n` +
           `  NODE_ENV=production\n` +
           `  MAX_SESSIONS=100\n` +
+          `  MAX_SESSIONS_PER_CLIENT=10\n` +
           `  SESSION_TIMEOUT_MS=300000\n` +
           `  RATE_LIMIT_WINDOW_MS=60000\n` +
           `  RATE_LIMIT_MAX_REQUESTS=100\n` +

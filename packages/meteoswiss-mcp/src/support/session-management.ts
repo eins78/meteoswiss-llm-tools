@@ -5,6 +5,8 @@ import { sessionOpened, sessionClosed } from './metrics.js';
 interface Session {
   transport: Transport;
   lastActivity: number;
+  /** Rate-limit identity of the client that opened the session (per-client quota). */
+  clientKey: string;
 }
 
 /**
@@ -34,7 +36,7 @@ export class SessionManager {
    * Add a new session
    * @throws {Error} If max sessions limit is reached
    */
-  add(sessionId: string, transport: Transport): void {
+  add(sessionId: string, transport: Transport, clientKey = ''): void {
     debugSession('Adding session: %s (current count: %d)', sessionId, this.sessions.size);
 
     if (this.sessions.size >= this.maxSessions && !this.sessions.has(sessionId)) {
@@ -45,6 +47,7 @@ export class SessionManager {
     this.sessions.set(sessionId, {
       transport,
       lastActivity: Date.now(),
+      clientKey,
     });
 
     sessionOpened();
@@ -138,6 +141,17 @@ export class SessionManager {
     }
 
     debugSession('SessionManager stopped, all sessions closed');
+  }
+
+  /**
+   * Count the open sessions of one client (by the key given to {@link add}).
+   */
+  countForClient(clientKey: string): number {
+    let count = 0;
+    for (const session of this.sessions.values()) {
+      if (session.clientKey === clientKey) count++;
+    }
+    return count;
   }
 
   /**

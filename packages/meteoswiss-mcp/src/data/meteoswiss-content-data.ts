@@ -280,6 +280,22 @@ export function assertAllowedContentUrl(rawUrl: string): void {
   }
 }
 
+/**
+ * Canonical form of an allowlisted content URL, used as the fetch target and
+ * cache key: query string, fragment and userinfo removed.
+ *
+ * @param rawUrl - A URL that already passed {@link assertAllowedContentUrl}
+ * @returns The URL without search, hash, username or password
+ */
+export function canonicalContentUrl(rawUrl: string): string {
+  const url = new URL(rawUrl);
+  url.search = '';
+  url.hash = '';
+  url.username = '';
+  url.password = '';
+  return url.href;
+}
+
 // Initialize Turndown for HTML to Markdown conversion
 const turndownService = new TurndownService({
   headingStyle: 'atx',
@@ -336,15 +352,20 @@ async function fetchFromWeb(
   includeMetadata: boolean
 ): Promise<ContentResponse> {
   // Normalise to full URL (accept full URLs; prepend base for bare paths for backward compat)
-  const fullUrl = id.startsWith('http')
+  const rawUrl = id.startsWith('http')
     ? id
     : `https://www.meteoswiss.admin.ch${id.startsWith('/') ? id : '/' + id}`;
 
-  debugData('Fetching content from URL: %s', fullUrl);
+  debugData('Fetching content from URL: %s', rawUrl);
 
   // Validated OUTSIDE the cache on purpose: a rejected URL must never consult,
   // populate or be served from it.
-  assertAllowedContentUrl(fullUrl);
+  assertAllowedContentUrl(rawUrl);
+
+  // One cache entry per page: MeteoSwiss pages take no query string, and a
+  // fragment never reaches the server. Keying on the raw URL let `?a=1`, `?a=2`,
+  // `#x`… each miss the cache and force a fresh upstream fetch and conversion.
+  const fullUrl = canonicalContentUrl(rawUrl);
 
   const cached = await cachified(
     {

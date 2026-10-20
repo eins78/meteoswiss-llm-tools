@@ -19,7 +19,7 @@ import express, { type Request, type Response, type NextFunction } from 'express
 import cors from 'cors';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator, MemoryStore } from 'express-rate-limit';
 import { SessionManager } from '../support/session-management.js';
 import type { EnvConfig } from '../support/environment-validation.js';
 import { renderHomepage } from '../support/markdown-rendering.js';
@@ -50,6 +50,26 @@ const ADVERTISED_TOOLS = [
   'fetch',
 ] as const;
 
+/** Error shape raised by Express's body parser (`type` such as `entity.too.large`). */
+interface BodyParserError {
+  status: number;
+  type: string;
+}
+
+/** Type guard for {@link BodyParserError}: a 4xx error carrying a body-parser `type`. */
+function isBodyParserError(err: unknown): err is BodyParserError {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'status' in err &&
+    'type' in err &&
+    typeof err.status === 'number' &&
+    err.status >= 400 &&
+    err.status < 500 &&
+    typeof err.type === 'string'
+  );
+}
+
 /** HTTP server interface returned by {@link createHttpServer} */
 export interface HttpServerInterface {
   app: express.Application;
@@ -68,13 +88,14 @@ export interface HttpServerInterface {
  */
 async function createAndRegisterTransport(
   createMcpServer: () => McpServer,
-  sessionManager: SessionManager
+  sessionManager: SessionManager,
+  clientKey: string
 ): Promise<StreamableHTTPServerTransport> {
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => randomUUID(),
     onsessioninitialized: (sessionId: string) => {
       debugTransport('Session initialized: %s', sessionId);
-      sessionManager.add(sessionId, transport);
+      sessionManager.add(sessionId, transport, clientKey);
       console.error(`New session initialized: ${sessionId}`);
     },
   });
@@ -124,11 +145,30 @@ export async function createHttpServer(
 
   const app = express();
 
-  // Trust the reverse proxy (Caddy) so `req.ip` reflects the real client via
-  // X-Forwarded-For instead of always resolving to the proxy's address. A fixed
-  // hop count is used deliberately — `trust proxy: true` would let clients spoof
-  // their IP by prepending a forged X-Forwarded-For, defeating per-IP rate limiting.
+  // Behind a reverse proxy (Caddy), TRUST_PROXY=1 makes `req.ip` the real client
+  // from X-Forwarded-For instead of the proxy address. The default is 0: a client
+  // that reaches the listener directly could otherwise rotate X-Forwarded-For to
+  // get a fresh rate-limit and session bucket per request. A fixed hop count is
+  // used deliberately — `trust proxy: true` would trust any forged chain.
   app.set('trust proxy', config.TRUST_PROXY);
+
+  // A proxy in front with TRUST_PROXY=0 makes every client share the proxy's
+  // rate-limit bucket and session quota. Say so once, the first time a
+  // forwarded request arrives, instead of failing silently.
+  if (config.TRUST_PROXY === 0) {
+    let warned = false;
+    app.use((req: Request, _res: Response, next: NextFunction) => {
+      if (!warned && req.headers['x-forwarded-for'] !== undefined) {
+        warned = true;
+        console.error(
+          'Warning: X-Forwarded-For received but TRUST_PROXY=0. If this server runs behind a ' +
+            'reverse proxy, set TRUST_PROXY to its hop count (1 for one proxy), or all clients ' +
+            'share one rate-limit bucket and one session quota.'
+        );
+      }
+      next();
+    });
+  }
 
   // Configure CORS for production.
   // credentials is deliberately false: this is a public, read-only service with
@@ -142,13 +182,15 @@ export async function createHttpServer(
     })
   );
 
-  // Configure request size limit
-  app.use(express.json({ limit: config.REQUEST_SIZE_LIMIT }));
-
-  // Configure rate limiting
+  // Configure rate limiting. The store and key are explicit so the batch check
+  // below can charge extra messages to the same client bucket.
+  const rateLimitStore = new MemoryStore();
+  const rateLimitKey = (req: Request): string => ipKeyGenerator(req.ip ?? 'unknown');
   const limiter = rateLimit({
     windowMs: config.RATE_LIMIT_WINDOW_MS,
     max: config.RATE_LIMIT_MAX_REQUESTS,
+    store: rateLimitStore,
+    keyGenerator: rateLimitKey,
     message: 'Too many requests, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
@@ -158,8 +200,15 @@ export async function createHttpServer(
     },
   });
 
-  // Apply rate limiting to all routes
+  // Apply rate limiting to all routes. It runs before the body parser, so a
+  // client over its quota is refused before the server reads or parses its body.
   app.use(limiter);
+
+  // Parse JSON bodies only where they are read (POST /mcp), with the size limit
+  // applied to the bytes on the wire. Compressed bodies are refused (415) rather
+  // than inflated: MCP clients do not compress requests, and inflating would let
+  // a small body cost up to REQUEST_SIZE_LIMIT of CPU and memory.
+  app.use('/mcp', express.json({ limit: config.REQUEST_SIZE_LIMIT, inflate: false }));
 
   // Request counting (before route handlers)
   app.use((req: Request, _res: Response, next: NextFunction) => {
@@ -173,6 +222,47 @@ export async function createHttpServer(
     (req: Request, res: Response, next: NextFunction) => {
       Promise.resolve(fn(req, res, next)).catch(next);
     };
+
+  // A JSON-RPC batch carries up to 100 messages in one HTTP request, and the SDK
+  // runs each one. The limiter counted the request once; charge every further
+  // message to the same bucket so a batch cannot multiply the per-client quota.
+  app.use(
+    '/mcp',
+    asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+      const body: unknown = req.body;
+      if (req.method !== 'POST' || !Array.isArray(body) || body.length <= 1) {
+        next();
+        return;
+      }
+      const key = rateLimitKey(req);
+      let totalHits = 0;
+      let resetTime: Date | undefined;
+      for (let i = 1; i < body.length; i++) {
+        ({ totalHits, resetTime } = await rateLimitStore.increment(key));
+      }
+      // The limiter already set its headers for one hit; restate them for the batch.
+      res.setHeader(
+        'RateLimit-Remaining',
+        String(Math.max(0, config.RATE_LIMIT_MAX_REQUESTS - totalHits))
+      );
+      if (totalHits > config.RATE_LIMIT_MAX_REQUESTS) {
+        debugTransport('Rate limit exceeded by a %d-message batch for IP: %s', body.length, req.ip);
+        if (resetTime) {
+          res.setHeader(
+            'Retry-After',
+            String(Math.max(0, Math.ceil((resetTime.getTime() - Date.now()) / 1000)))
+          );
+        }
+        res.status(429).json({ error: 'Too many requests, please try again later.' });
+        return;
+      }
+      next();
+    })
+  );
+
+  // Initialize requests per client that passed the quota check but have not
+  // registered their session yet (see the per-client quota in POST /mcp).
+  const pendingInitByClient = new Map<string, number>();
 
   // Session manager for transport cleanup
   const sessionManager = new SessionManager(config.MAX_SESSIONS, config.SESSION_TIMEOUT_MS);
@@ -261,58 +351,90 @@ export async function createHttpServer(
 
       // For initialization requests (no session ID), create a new transport
       let isNewTransport = false;
-      if (!transport) {
-        if (req.method === 'POST') {
-          // Enforce the session cap here so it surfaces as a proper 503 up front.
-          // The manager also throws inside onsessioninitialized, but that path
-          // returns a generic 500 and can double-close the transport (FUN-13).
-          if (sessionManager.size >= config.MAX_SESSIONS) {
-            debugTransport('Session capacity reached (%d), rejecting', config.MAX_SESSIONS);
-            res.status(503).json({ error: 'Server capacity reached' });
-            return;
-          }
-          // Could be an initialize request — create a new transport + server pair
-          try {
-            transport = await createAndRegisterTransport(createMcpServer, sessionManager);
-            isNewTransport = true;
-            debugTransport('Created new transport for potential initialization');
-          } catch (error) {
-            console.error('Failed to create transport:', error);
-            debugTransport('Failed to create transport: %O', error);
-            res.status(503).json({ error: 'Server capacity reached' });
-            return;
-          }
-        } else {
-          // GET or DELETE without a valid session ID
-          res.status(400).json({
-            jsonrpc: '2.0',
-            error: { code: -32000, message: 'Bad Request: Mcp-Session-Id header is required' },
-            id: null,
-          });
-          return;
-        }
-      }
-
-      // Delegate to the transport — it handles all protocol details
+      let reservedClientKey: string | undefined;
       try {
-        await transport.handleRequest(req, res, req.body);
-      } catch (error) {
-        console.error('Error handling MCP request:', error);
-        debugTransport('Error handling MCP request: %O', error);
-        // Clean up newly created transports that failed during first request
-        if (isNewTransport) {
+        if (!transport) {
+          if (req.method === 'POST') {
+            // Enforce the session cap here so it surfaces as a proper 503 up front.
+            // The manager also throws inside onsessioninitialized, but that path
+            // returns a generic 500 and can double-close the transport (FUN-13).
+            if (sessionManager.size >= config.MAX_SESSIONS) {
+              debugTransport('Session capacity reached (%d), rejecting', config.MAX_SESSIONS);
+              res.status(503).json({ error: 'Server capacity reached' });
+              return;
+            }
+            // Per-client quota, keyed like the rate limiter: without it one client
+            // can open every slot and keep them alive with pings, locking out all
+            // new clients while it keeps pinging.
+            // The slot is reserved synchronously, before the first await: the
+            // session only registers later, inside handleRequest, so concurrent
+            // initializes would otherwise all pass this check.
+            const clientKey = rateLimitKey(req);
+            const pending = pendingInitByClient.get(clientKey) ?? 0;
+            if (
+              sessionManager.countForClient(clientKey) + pending >=
+              config.MAX_SESSIONS_PER_CLIENT
+            ) {
+              debugTransport('Per-client session quota reached for IP: %s', req.ip);
+              res.status(429).json({ error: 'Too many open sessions for this client' });
+              return;
+            }
+            pendingInitByClient.set(clientKey, pending + 1);
+            reservedClientKey = clientKey;
+            // Could be an initialize request — create a new transport + server pair
+            try {
+              transport = await createAndRegisterTransport(
+                createMcpServer,
+                sessionManager,
+                clientKey
+              );
+              isNewTransport = true;
+              debugTransport('Created new transport for potential initialization');
+            } catch (error) {
+              console.error('Failed to create transport:', error);
+              debugTransport('Failed to create transport: %O', error);
+              res.status(503).json({ error: 'Server capacity reached' });
+              return;
+            }
+          } else {
+            // GET or DELETE without a valid session ID
+            res.status(400).json({
+              jsonrpc: '2.0',
+              error: { code: -32000, message: 'Bad Request: Mcp-Session-Id header is required' },
+              id: null,
+            });
+            return;
+          }
+        }
+
+        // Delegate to the transport — it handles all protocol details
+        try {
+          await transport.handleRequest(req, res, req.body);
+        } catch (error) {
+          console.error('Error handling MCP request:', error);
+          debugTransport('Error handling MCP request: %O', error);
+          // Clean up newly created transports that failed during first request
+          if (isNewTransport) {
+            await transport.close();
+          }
+          // Only send error if response hasn't started
+          if (!res.headersSent) {
+            res.status(500).json({ error: 'Internal server error' });
+          }
+        }
+
+        // Clean up new transports that didn't initialize (e.g., non-initialize POST)
+        if (isNewTransport && !transport.sessionId) {
+          debugTransport('New transport did not initialize, cleaning up');
           await transport.close();
         }
-        // Only send error if response hasn't started
-        if (!res.headersSent) {
-          res.status(500).json({ error: 'Internal server error' });
+      } finally {
+        // By now the session is registered (and counted) or was never created.
+        if (reservedClientKey !== undefined) {
+          const left = (pendingInitByClient.get(reservedClientKey) ?? 1) - 1;
+          if (left > 0) pendingInitByClient.set(reservedClientKey, left);
+          else pendingInitByClient.delete(reservedClientKey);
         }
-      }
-
-      // Clean up new transports that didn't initialize (e.g., non-initialize POST)
-      if (isNewTransport && !transport.sessionId) {
-        debugTransport('New transport did not initialize, cleaning up');
-        await transport.close();
       }
     })
   );
@@ -372,6 +494,19 @@ export async function createHttpServer(
 
   // Global error handler
   app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
+    // Body-parser rejections are client errors: answer with their own status
+    // (400 malformed JSON, 413 too large, 415 compressed or wrong charset).
+    if (isBodyParserError(err)) {
+      debugTransport('Request body rejected on %s %s: %s', req.method, req.path, err.type);
+      if (err.type === 'entity.parse.failed') {
+        res
+          .status(400)
+          .json({ jsonrpc: '2.0', error: { code: -32700, message: 'Parse error' }, id: null });
+      } else {
+        res.status(err.status).json({ error: 'Request body rejected' });
+      }
+      return;
+    }
     console.error('Unhandled error:', err);
     debugTransport('Unhandled error on %s %s: %O', req.method, req.path, err);
     res.status(500).json({ error: 'Internal server error' });
