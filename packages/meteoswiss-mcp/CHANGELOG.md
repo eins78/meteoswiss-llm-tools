@@ -1,5 +1,24 @@
 # meteoswiss-mcp
 
+## 4.0.0 - 2026-10-20
+
+### Major Changes
+
+- 94d21aa: **Breaking for deployments behind a reverse proxy:** `TRUST_PROXY` now defaults to `0` (was `1`). With the old default, a client that reached the server directly could send a different `X-Forwarded-For` on each request and get a fresh rate-limit bucket every time. If the server runs behind one proxy such as Caddy, set `TRUST_PROXY=1` before upgrading, or every client shares the proxy's rate-limit bucket.
+  
+  The server logs a warning the first time a request with `X-Forwarded-For` arrives while `TRUST_PROXY=0`.
+
+### Minor Changes
+
+- 6f1182b: New `MAX_SESSIONS_PER_CLIENT` setting (default `10`) limits how many sessions one client IP can hold open. Before, one client could open every one of the `MAX_SESSIONS` slots and keep them alive with pings, so all new clients got 503 for as long as it kept pinging. An initialize over the client's quota now gets 429; the client's other sessions keep working. The client IP is the one the rate limiter sees, so set `TRUST_PROXY` correctly behind a proxy.
+
+### Patch Changes
+
+- 1111805: A JSON-RPC batch on `POST /mcp` now counts every message it carries against the per-client rate limit. Before, the batch counted as one request, so one POST could run up to 100 tool calls. A batch that goes over the remaining quota gets 429.
+- 0fdbbef: The `fetch` tool now drops the query string, fragment and userinfo from a page URL before it fetches and caches the page. Before, every `?…` or `#…` variant of one page was a new cache entry and a new upstream fetch, so the cache could be bypassed without limit.
+- 4875891: The rate limiter now runs before the JSON body parser, so a client over its quota is refused before its body is read. The parser only runs on `/mcp`, and it refuses compressed request bodies (415) instead of inflating them. Malformed JSON now gets 400 with a JSON-RPC parse error, and an oversize body gets 413. Both returned 500 before.
+- b853621: Tool failures are now logged as one sanitized stderr line. Before, the error object was logged as is, and resolver messages carry the raw tool argument, so a newline in an argument could start a forged log line. The full error stays available in the debug log.
+
 ## 3.1.2 - 2026-10-11
 
 ### Patch Changes
