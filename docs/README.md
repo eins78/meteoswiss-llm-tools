@@ -6,8 +6,8 @@ Public documentation for [meteoswiss-llm-tools](../README.md).
 
 - **[Skill vs. MCP Server](skill-vs-mcp.md)** — the case study at the heart of this repo: the same MeteoSwiss data access implemented as an agent skill and as an MCP server, compared honestly.
 - **[Eval results: forecast JSON comprehension](../packages/meteoswiss-forecast-evals/docs/results/2026-07-09-forecast-json-comprehension.md)** — how measuring LLM legibility of tool output settled a real design decision (local-time vs. UTC timestamps).
-- **[MCP server user guide](../packages/meteoswiss-mcp/docs/user-guide.md)** — using the hosted service and the tools.
-- **[MCP server package docs](../packages/meteoswiss-mcp/docs/)** — architecture, debugging, releasing.
+- **[Documentation site](https://code.178.is/meteoswiss-llm-tools/)** — user docs (connect, every tool, limits), operator docs (Docker, configuration, monitoring) and development docs. Source: [`packages/meteoswiss-docs-site`](../packages/meteoswiss-docs-site/).
+- **[MCP server package docs](../packages/meteoswiss-mcp/docs/)** — debugging notes and the one-time publishing setup.
 - **[Eval suite design](../packages/meteoswiss-forecast-evals/docs/spec.md)** — methodology behind the eval package.
 
 ## Working notes

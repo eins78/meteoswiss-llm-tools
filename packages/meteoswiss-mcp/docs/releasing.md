@@ -1,29 +1,15 @@
 # Releasing
 
-Releases are triggered by creating a GitHub Release. The tag name determines the version.
+The release process (changesets, the "Version Packages" pull request, tags and pre-releases) is documented on the site:
+**[Release process](https://code.178.is/meteoswiss-llm-tools/development/releasing/)**. In short:
 
-## How to Release
+1. Add a changeset to each user-facing pull request.
+2. Merge the automatically opened "Version Packages" pull request.
+3. Create a GitHub Release whose tag is `meteoswiss-mcp-vX.Y.Z` (or `meteoswiss-skills-vX.Y.Z`). A hyphenated version such as
+   `4.1.0-rc.1` is a pre-release: npm `next`, no `latest` tag.
 
-1. Ensure `main` is in a releasable state (CI green)
-2. Create a GitHub Release:
-   - Via CLI: `gh release create v2.0.1 --title "v2.0.1" --generate-notes`
-   - Via GitHub UI: Releases → Draft a new release → Choose tag (create new: `v2.0.1`) → Write release notes → Publish
-3. The [release workflow](../../.github/workflows/release.yml) automatically:
-   - Runs full CI validation (lint, build, test)
-   - Publishes `meteoswiss-mcp` to npm
-   - Builds and pushes `ghcr.io/eins78/meteoswiss-mcp` to GHCR (linux/amd64 + linux/arm64)
-4. Deploy manually by pulling the new image
-
-## Version Convention
-
-The tag name must start with `v` followed by a valid semver version:
-
-| Tag | npm version | Docker tags | npm dist-tag |
-|-----|-------------|-------------|--------------|
-| `v2.0.1` | `2.0.1` | `2.0.1`, `latest` | `latest` |
-| `v2.1.0-rc.1` | `2.1.0-rc.1` | `2.1.0-rc.1` | `next` |
-
-Pre-release versions (containing a hyphen) do **not** update the `latest` tag on npm or Docker.
+The release workflow ([`release.yml`](../../../.github/workflows/release.yml)) runs the CI checks, publishes `meteoswiss-mcp` to npm and
+pushes `ghcr.io/eins78/meteoswiss-mcp` (linux/amd64 and linux/arm64). Deploying the new image is up to whoever runs the server.
 
 ## Security
 
@@ -38,7 +24,7 @@ The release workflow follows [npm security best practices](https://www.zachleat.
 
 ### Setup: npm Trusted Publishers (OIDC)
 
-npm Trusted Publishers require the package to exist first. One-time bootstrap:
+npm Trusted Publishers require the package to exist first. One-time bootstrap (already done for `meteoswiss-mcp`):
 
 1. **First publish (manual, one-time only):**
    ```bash
@@ -60,26 +46,9 @@ npm Trusted Publishers require the package to exist first. One-time bootstrap:
    - Settings → Publishing access → "Require two-factor authentication and disallow tokens"
 5. **Delete any npm tokens** you created for the bootstrap
 
-After this, all future publishes use OIDC — no tokens stored anywhere.
-
-GHCR push uses the built-in `GITHUB_TOKEN` — no configuration needed.
+After this, all future publishes use OIDC — no tokens stored anywhere. GHCR push uses the built-in `GITHUB_TOKEN`.
 
 ## Version in package.json
 
-The `version` field in `package.json` is updated automatically during CI from the release tag. You do not need to bump it manually before releasing.
-
-## Quick Reference
-
-```bash
-# Create a release (triggers workflow)
-gh release create v2.0.1 --title "v2.0.1" --generate-notes
-
-# Create a pre-release
-gh release create v2.1.0-rc.1 --title "v2.1.0-rc.1" --prerelease --generate-notes
-
-# Check workflow status
-gh run list --workflow=release.yml
-
-# Pull the published image
-docker pull ghcr.io/eins78/meteoswiss-mcp:2.0.1
-```
+Versions are bumped by changesets in the "Version Packages" pull request, not by hand. As a safety net, `release.yml` also sets the
+`package.json` version from the tag when the two differ (in the npm and Docker jobs), so the tag must match the merged version.

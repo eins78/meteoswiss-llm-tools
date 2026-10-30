@@ -11,6 +11,8 @@ Swiss weather data for AI assistants — powered by [MeteoSwiss Open Government 
 
 **[meteoswiss-mcp.ars.is](https://meteoswiss-mcp.ars.is/)** — try the hosted service instantly, no setup needed.
 
+📖 **[Read the documentation → code.178.is/meteoswiss-llm-tools](https://code.178.is/meteoswiss-llm-tools/)** — for [users](https://code.178.is/meteoswiss-llm-tools/user/getting-started/) (every tool, example prompts, limits), [operators](https://code.178.is/meteoswiss-llm-tools/operator/install/) (Docker, configuration, monitoring) and [developers](https://code.178.is/meteoswiss-llm-tools/development/architecture/) (architecture, tests, releases).
+
 This repo is also a working answer to a design question: **how should you give AI agents access to a public dataset?** It implements the same MeteoSwiss data access twice — as an [agent skill](packages/meteoswiss-skills/) (markdown instructions plus bash scripts, no server) and as an [MCP server](packages/meteoswiss-mcp/) (structured tools, fuzzy matching, caching, hosted). The two approaches are compared honestly in the [skill vs. MCP case study](docs/skill-vs-mcp.md).
 
 A third piece, [meteoswiss-forecast-evals](packages/meteoswiss-forecast-evals/), demonstrates eval-driven interface design: a [promptfoo](https://promptfoo.dev/) suite measuring how well 13 LLMs read the forecast JSON, which settled a real design decision — local-time timestamps beat UTC, with hour-level lookups scoring ~100% vs. ~0%.
@@ -53,7 +55,7 @@ Use the hosted instance (no installation):
 
 ```bash
 # Claude Code
-claude mcp add meteoswiss https://meteoswiss-mcp.ars.is/mcp
+claude mcp add --transport http meteoswiss https://meteoswiss-mcp.ars.is/mcp
 ```
 
 For **Cursor**, install from the [Cursor Directory](https://cursor.directory/plugins/meteoswiss-llm-tools) or add manually via Settings → MCP.
@@ -109,15 +111,19 @@ Works with both approaches — just ask in any of Switzerland's four languages:
 | Package | Version | Description |
 |---------|---------|-------------|
 | [`meteoswiss-mcp`](packages/meteoswiss-mcp/) | [![npm](https://img.shields.io/npm/v/meteoswiss-mcp)](https://www.npmjs.com/package/meteoswiss-mcp) | MCP server with structured tools, fuzzy matching, and geocoding |
-| [`meteoswiss-skills`](packages/meteoswiss-skills/) | 1.0.0 | Agent skill — direct HTTP access, no server needed |
+| [`meteoswiss-skills`](packages/meteoswiss-skills/) | 1.1.0 | Agent skill — direct HTTP access, no server needed |
 | [`meteoswiss-forecast-evals`](packages/meteoswiss-forecast-evals/) | — | LLM eval suite for the forecast JSON format (standalone, not a workspace member) |
 
 ## Documentation
 
-- [Skill vs. MCP case study](docs/skill-vs-mcp.md) — the honest comparison of the two approaches
-- [Eval results: forecast JSON comprehension](packages/meteoswiss-forecast-evals/docs/results/2026-07-09-forecast-json-comprehension.md) — the local-time-vs-UTC sweep
-- [MCP server user guide](packages/meteoswiss-mcp/docs/user-guide.md)
-- [Documentation index](docs/README.md)
+The documentation site is at **[code.178.is/meteoswiss-llm-tools](https://code.178.is/meteoswiss-llm-tools/)**:
+
+- [Use it](https://code.178.is/meteoswiss-llm-tools/user/getting-started/) — connect a client, tools reference, the Agent Skill, data sources and limits
+- [Run it](https://code.178.is/meteoswiss-llm-tools/operator/install/) — Docker and npm, configuration, monitoring, releases and upgrading
+- [Build on it](https://code.178.is/meteoswiss-llm-tools/development/architecture/) — architecture, testing, release process, contributing
+- [Evaluations](https://code.178.is/meteoswiss-llm-tools/evaluations/) — the [skill vs. MCP case study](docs/skill-vs-mcp.md) and the eval runs, including the local-time-vs-UTC sweep
+
+In the repository: [documentation index](docs/README.md).
 
 ## Development
 

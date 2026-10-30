@@ -11,6 +11,8 @@ This package is the *server* half of the repo's [skill vs. MCP case study](../..
 
 **[meteoswiss-mcp.ars.is](https://meteoswiss-mcp.ars.is/)** — try it now, no setup needed.
 
+📖 **[Documentation](https://code.178.is/meteoswiss-llm-tools/)** — [using the tools](https://code.178.is/meteoswiss-llm-tools/user/getting-started/), [running your own instance](https://code.178.is/meteoswiss-llm-tools/operator/install/) (full environment variable reference), and [development](https://code.178.is/meteoswiss-llm-tools/development/architecture/).
+
 - **Multi-day forecasts** for ~6000 Swiss locations (postal codes, stations, place names)
 - **Real-time measurements** from ~300 stations (~160 full weather + ~140 precipitation-only), updated every 10 minutes
 - **Station discovery** by name, canton, or GPS coordinates
@@ -25,7 +27,7 @@ No installation required — the server is hosted at `https://meteoswiss-mcp.ars
 ### Claude Code
 
 ```bash
-claude mcp add meteoswiss https://meteoswiss-mcp.ars.is/mcp
+claude mcp add --transport http meteoswiss https://meteoswiss-mcp.ars.is/mcp
 ```
 
 ### Claude Desktop
@@ -143,6 +145,8 @@ The server will be available at `http://localhost:3000`. MCP endpoint: `http://l
 | `SESSION_TIMEOUT_MS` | `300000` | Session timeout in milliseconds |
 | `TRUST_PROXY` | `0` | Number of reverse-proxy hops to trust for the client IP (`X-Forwarded-For`). Set `1` behind one proxy such as Caddy; leave `0` when clients reach the server directly, or they can spoof their IP past the rate limit |
 | `DEBUG` | — | Debug namespaces (e.g. `mcp:*`) |
+
+This table lists the commonly used variables. The [configuration reference](https://code.178.is/meteoswiss-llm-tools/operator/configuration/) documents all of them, including rate limiting, the data cache and the content cache.
 
 ---
 

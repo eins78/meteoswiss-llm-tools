@@ -38,6 +38,9 @@ This is a monorepo (`meteoswiss-llm-tools`) for MeteoSwiss LLM tooling:
 |---------|-------------|------------|
 | `packages/meteoswiss-mcp/` | MCP server (TypeScript) | `pnpm --filter meteoswiss-mcp run ci` |
 | `packages/meteoswiss-skills/` | Agent skill for direct OGD access | `pnpm --filter meteoswiss-skills test` |
+| `packages/meteoswiss-docs-site/` | Public docs site (Astro Starlight → GitHub Pages, https://code.178.is/meteoswiss-llm-tools/) | `cd packages/meteoswiss-docs-site && pnpm install && pnpm run build` |
+
+**Docs site.** `user/`, `operator/`, `development/` under `packages/meteoswiss-docs-site/src/content/docs/` are hand-written and must follow the code: when you change a tool, an environment variable or the release flow, update the matching page in the same PR. `evaluations/skill-vs-mcp.md` and `runs/` are synced in by `scripts/sync-content.ts` — edit the sources. Plans, sessionlogs, research and test reports are never published.
 
 Git tags use package prefixes: `meteoswiss-mcp-v2.0.0`, `meteoswiss-skills-v1.0.0-rc.1`.
 
@@ -60,9 +63,10 @@ The MCP server is implemented using:
    - `/health` - Health check endpoint
 4. **Tools** (`src/tools/`, `src/data/`): MCP tools for weather data
    - `meteoswissLocalForecast`: Multi-day forecasts for ~6000 Swiss locations (postal codes, stations, place names)
-   - `meteoswissCurrentWeather`: Real-time measurements from ~160 automatic weather stations
+   - `meteoswissCurrentWeather`: Real-time measurements from ~300 automatic stations (~160 full weather + ~140 precipitation-only)
    - `meteoswissStations`: Station discovery and search by name, canton, or coordinates
    - `meteoswissPollenData`: Pollen concentration monitoring from ~15 stations
+   - `meteoswissClimateData`: Homogeneous NBCN climate series (daily/monthly/yearly) from 29 climate + 46 precipitation stations
    - `search`: Search MeteoSwiss website content
    - `fetch`: Fetch full content from MeteoSwiss pages
 5. **Data Layer** (`src/data/`): STAC API client, disk-based CSV cache, station resolver, geocoding

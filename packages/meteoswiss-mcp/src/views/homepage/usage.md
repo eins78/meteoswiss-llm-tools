@@ -5,7 +5,7 @@ No installation required — this server is hosted and ready to use.
 ## Claude Code
 
 ```bash
-claude mcp add meteoswiss $$$___TEMPLATE_MCP_URL___$$$
+claude mcp add --transport http meteoswiss $$$___TEMPLATE_MCP_URL___$$$
 ```
 
 ## Claude Desktop
@@ -41,4 +41,4 @@ Go to **Settings** → **Integrations** → **Add MCP Server** → paste the MCP
 
 ## Self-Hosting & Development
 
-See the [GitHub repository](https://github.com/eins78/meteoswiss-llm-tools/tree/main/packages/meteoswiss-mcp) for Docker, self-hosting, and development instructions.
+See the [documentation](https://code.178.is/meteoswiss-llm-tools/operator/install/) for Docker, self-hosting and configuration, and the [GitHub repository](https://github.com/eins78/meteoswiss-llm-tools/tree/main/packages/meteoswiss-mcp) for the source.

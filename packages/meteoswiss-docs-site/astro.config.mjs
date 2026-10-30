@@ -16,12 +16,24 @@ export default defineConfig({
 			social: [
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/eins78/meteoswiss-llm-tools' },
 			],
-			// This site publishes only the promptfoo eval runs + editorial about them (2026-07-18
-			// re-scope) — no plans/sessionlogs/research/internal docs. See the implementation plan for
-			// why `forecast-evals-results` (the raw promptfoo HTML snapshots in public/) isn't listed
-			// here — autogenerate only scans src/content/docs/, and those files are deliberately
-			// outside that pipeline.
-			sidebar: [{ label: 'Eval Runs', items: [{ autogenerate: { directory: 'runs' } }] }],
+			// Public docs for three audiences (user / operator / development) plus the evidence behind the
+			// design (evaluations). Plans, sessionlogs, research and test reports are deliberately NOT
+			// published. user/, operator/, development/ are hand-authored; evaluations/ mixes a hand-authored
+			// index with files assembled by scripts/sync-content.ts (runs/ and evaluations/skill-vs-mcp.md).
+			sidebar: [
+				{ label: 'Use it', items: [
+					'user/getting-started', 'user/tools', 'user/agent-skill', 'user/data-and-limits',
+				] },
+				{ label: 'Run it', items: [
+					'operator/install', 'operator/configuration', 'operator/monitoring', 'operator/releases',
+				] },
+				{ label: 'Build on it', items: [
+					'development/architecture', 'development/testing', 'development/releasing', 'development/contributing',
+				] },
+				{ label: 'Evaluations', items: [
+					'evaluations', 'evaluations/skill-vs-mcp', { label: 'Eval runs', items: [{ autogenerate: { directory: 'runs' } }] },
+				] },
+			],
 		}),
 	],
 });

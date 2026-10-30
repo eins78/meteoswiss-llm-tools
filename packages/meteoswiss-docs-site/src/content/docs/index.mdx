@@ -1,19 +1,42 @@
 ---
-title: MeteoSwiss Forecast-JSON Comprehension Evals
-description: How well do LLMs understand the JSON meteoswissLocalForecast returns? promptfoo eval runs and the editorial explaining them.
+title: MeteoSwiss LLM Tools
+description: Swiss weather data for AI assistants - an MCP server and an Agent Skill built on MeteoSwiss Open Government Data. Documentation for users, operators and developers.
 ---
 
-import { LinkCard } from '@astrojs/starlight/components';
-import runs from '../../data/runs.generated.json';
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
 
-Eval runs testing how well LLMs understand the JSON returned by MeteoSwiss's
-`meteoswissLocalForecast` tool — timestamp labeling, field shape, what changes comprehension and
-what doesn't. Each run below is a dated, immutable snapshot: a new finding adds a new run rather
-than editing an old one.
+Swiss weather data for AI assistants, powered by [MeteoSwiss Open Government Data](https://opendatadocs.meteoswiss.ch/) — the same
+data behind the MeteoSwiss app and website. Free, no API key.
 
-{runs.map((run) => (
-  <LinkCard title={run.title} description={run.teaser} href={run.href} />
-))}
+It comes in two forms that answer the same questions: an **MCP server** with structured tools (hosted at
+[meteoswiss-mcp.ars.is](https://meteoswiss-mcp.ars.is/), or run your own) and an **Agent Skill** that needs no server at all.
 
-Source: [github.com/eins78/meteoswiss-llm-tools](https://github.com/eins78/meteoswiss-llm-tools)
-· Eval suite: [`packages/meteoswiss-forecast-evals`](https://github.com/eins78/meteoswiss-llm-tools/tree/main/packages/meteoswiss-forecast-evals)
+<CardGrid>
+  <Card title="Forecasts" icon="sun">Up to 9 days, hourly detail, ~6000 Swiss locations.</Card>
+  <Card title="Current weather" icon="rocket">~300 stations, updated every 10 minutes.</Card>
+  <Card title="Pollen" icon="seedling">Seven species from ~15 monitoring stations.</Card>
+  <Card title="Climate series" icon="document">NBCN series going back decades, plus MeteoSwiss website search.</Card>
+</CardGrid>
+
+## Pick your path
+
+<CardGrid>
+  <LinkCard title="Use it" description="Connect Claude, Cursor or any MCP client. Tools, example prompts, data sources and limits." href="user/getting-started/" />
+  <LinkCard title="Run it" description="Docker or npm, every environment variable, caching, health and metrics, upgrades." href="operator/install/" />
+  <LinkCard title="Build on it" description="Architecture, tests, the release process, and how to contribute." href="development/architecture/" />
+  <LinkCard title="See the evidence" description="Eval runs and the skill-vs-MCP case study behind the design decisions." href="evaluations/" />
+</CardGrid>
+
+## Quick start
+
+```bash
+claude mcp add --transport http meteoswiss https://meteoswiss-mcp.ars.is/mcp
+```
+
+Then ask: *"Wie wird das Wetter in Bern morgen?"* — other clients are covered in [Connect to the hosted server](user/getting-started/).
+
+---
+
+Source and issues: [github.com/eins78/meteoswiss-llm-tools](https://github.com/eins78/meteoswiss-llm-tools) · Software licence
+[CC0-1.0](https://github.com/eins78/meteoswiss-llm-tools/blob/main/LICENSE) · Data: MeteoSwiss Open Government Data. This is a
+community project, not an official MeteoSwiss service.

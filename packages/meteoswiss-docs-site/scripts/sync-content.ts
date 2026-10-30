@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * Assembles Starlight's src/content/docs/ and public/ from the promptfoo eval run write-ups at
- * packages/meteoswiss-forecast-evals/docs/results/ — the only content this public site serves.
- * Deliberately scoped to just that: internal docs (plans, sessionlogs, research, test-reports)
- * are not synced at all, by design (2026-07-18 re-scope per Max — see the sessionlog for the
- * full include/exclude rationale).
+ * Assembles the synced parts of Starlight's src/content/docs/ and public/: the promptfoo eval run
+ * write-ups from packages/meteoswiss-forecast-evals/docs/results/ (-> runs/) and the case study
+ * docs/skill-vs-mcp.md (-> evaluations/skill-vs-mcp.md). The user/, operator/ and development/
+ * sections and the home page are hand-written and never touched. Internal docs (plans,
+ * sessionlogs, research, test-reports) are deliberately not synced, by design.
  *
  * Each synced run page gets two things injected right after its frontmatter: a link to its
  * paired promptfoo HTML snapshot (if one exists — the snapshot itself lives outside the content
@@ -43,6 +43,8 @@ const CONTENT_DOCS_DIR = join(PACKAGE_ROOT, 'src', 'content', 'docs');
 // URL path (always forward-slash), independent of RUNS_DEST_DIR's filesystem join below.
 const RUNS_URL_PREFIX = 'runs';
 const RUNS_DEST_DIR = join(CONTENT_DOCS_DIR, 'runs');
+const SKILL_VS_MCP_SOURCE = join(REPO_ROOT, 'docs', 'skill-vs-mcp.md');
+const SKILL_VS_MCP_DEST = join(CONTENT_DOCS_DIR, 'evaluations', 'skill-vs-mcp.md');
 const EDITORIAL_DIR = join(PACKAGE_ROOT, 'editorial');
 const DATA_DIR = join(PACKAGE_ROOT, 'src', 'data');
 const RUNS_MANIFEST_PATH = join(DATA_DIR, 'runs.generated.json');
@@ -226,14 +228,34 @@ function syncRuns(snapshotSlugs: Set<string>): RunManifestEntry[] {
   return manifest;
 }
 
+/**
+ * Clears only what this script writes. The user/, operator/, development/ and evaluations/
+ * sections are hand-authored and must survive (evaluations/skill-vs-mcp.md is the one synced
+ * file inside a hand-authored directory).
+ */
 function clearSyncTargets(): void {
-  if (existsSync(CONTENT_DOCS_DIR)) {
-    for (const entry of readdirSync(CONTENT_DOCS_DIR)) {
-      if (entry === 'index.mdx') continue; // hand-authored homepage
-      rmSync(join(CONTENT_DOCS_DIR, entry), { recursive: true, force: true });
-    }
-  }
-  if (existsSync(PUBLIC_RESULTS_DIR)) rmSync(PUBLIC_RESULTS_DIR, { recursive: true, force: true });
+  rmSync(RUNS_DEST_DIR, { recursive: true, force: true });
+  rmSync(SKILL_VS_MCP_DEST, { force: true });
+  rmSync(PUBLIC_RESULTS_DIR, { recursive: true, force: true });
+}
+
+/**
+ * Publishes docs/skill-vs-mcp.md (the case study) under Evaluations. Relative links to repo
+ * files become absolute GitHub URLs; links to the eval run write-ups point at the site's own
+ * run pages, so the reader stays on the site.
+ */
+function syncSkillVsMcp(): void {
+  const raw = readFileSync(SKILL_VS_MCP_SOURCE, 'utf8');
+  const withSiteRuns = raw.replace(
+    /\]\(\.\.\/packages\/meteoswiss-forecast-evals\/docs\/results\/([^)#]+?)\.md(#[^)]*)?\)/g,
+    (_m, slug: string, hash: string | undefined) => `](${BASE}/${RUNS_URL_PREFIX}/${slug}/${hash ?? ''})`,
+  );
+  const rewritten = rewriteRelativeLinks(withSiteRuns, SKILL_VS_MCP_SOURCE);
+  mkdirSync(dirname(SKILL_VS_MCP_DEST), { recursive: true });
+  // Starlight renders the frontmatter title as the page heading, so drop the leading H1.
+  const withoutH1 = rewritten.replace(/^# .+\n+/, '');
+  const title = titleFromContent(rewritten, 'skill-vs-mcp.md').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  writeFileSync(SKILL_VS_MCP_DEST, `---\ntitle: "${title}"\n---\n\n${withoutH1}`, 'utf8');
 }
 
 function main(): void {
@@ -250,6 +272,8 @@ function main(): void {
   console.log(
     `synced ${manifest.length} eval run(s) -> ${relative(PACKAGE_ROOT, RUNS_DEST_DIR)}`,
   );
+
+  syncSkillVsMcp();
 
   mkdirSync(DATA_DIR, { recursive: true });
   writeFileSync(RUNS_MANIFEST_PATH, JSON.stringify(manifest, null, 2) + '\n', 'utf8');
