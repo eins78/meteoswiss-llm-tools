@@ -761,92 +761,60 @@
                   "description": "Local Europe/Zurich calendar date (YYYY-MM-DD) for postal codes/mountain points; the station data source's native daily date for weather stations."
                 },
                 "weather": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ],
-                  "description": "Human-readable weather description"
+                  "description": "Human-readable weather description",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "weather_icon_url": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ],
-                  "description": "URL of the official MeteoSwiss weather icon"
+                  "description": "URL of the official MeteoSwiss weather icon",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "temperature_min_c": {
-                  "anyOf": [
-                    {
-                      "type": "number"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ],
-                  "description": "Daily temperature minimum, °C. For postal codes/mountain points, derived from the same hourly series as `hourly` (so they cannot disagree). For weather stations, MeteoSwiss's official daily aggregate (`tre200dn`) — may capture sub-hourly extremes the hourly series alone wouldn't show."
+                  "description": "Daily temperature minimum, °C. For postal codes/mountain points, derived from the same hourly series as `hourly` (so they cannot disagree). For weather stations, MeteoSwiss's official daily aggregate (`tre200dn`) — may capture sub-hourly extremes the hourly series alone wouldn't show.",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
                 },
                 "temperature_max_c": {
-                  "anyOf": [
-                    {
-                      "type": "number"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ],
-                  "description": "Daily temperature maximum, °C. Same sourcing rules as temperature_min_c (station aggregate: `tre200dx`)."
+                  "description": "Daily temperature maximum, °C. Same sourcing rules as temperature_min_c (station aggregate: `tre200dx`).",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
                 },
                 "precipitation_total_mm": {
-                  "anyOf": [
-                    {
-                      "type": "number"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ],
-                  "description": "Daily precipitation total, mm. For postal codes/mountain points, the sum of `hourly`'s `precip_mm` (cannot disagree with the series). For weather stations, MeteoSwiss's official daily aggregate (`rka150d0`) — a *different* product than re-summing the station's hourly series, so it may legitimately NOT equal `sum(hourly precip_mm)` for stations. This is expected, not a data inconsistency."
+                  "description": "Daily precipitation total, mm. For postal codes/mountain points, the sum of `hourly`'s `precip_mm` (cannot disagree with the series). For weather stations, MeteoSwiss's official daily aggregate (`rka150d0`) — a *different* product than re-summing the station's hourly series, so it may legitimately NOT equal `sum(hourly precip_mm)` for stations. This is expected, not a data inconsistency.",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
                 },
                 "sunshine_total_minutes": {
-                  "anyOf": [
-                    {
-                      "type": "number"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ],
-                  "description": "Daily sunshine total, minutes. Derived from `hourly`'s `sunshine_minutes` for every point type (no official daily aggregate exists for this parameter)."
+                  "description": "Daily sunshine total, minutes. Derived from `hourly`'s `sunshine_minutes` for every point type (no official daily aggregate exists for this parameter).",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
                 },
                 "wind_avg_kmh": {
-                  "anyOf": [
-                    {
-                      "type": "number"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ],
-                  "description": "Daily mean wind speed, km/h. Derived from `hourly`'s `wind_kmh` for every point type."
+                  "description": "Daily mean wind speed, km/h. Derived from `hourly`'s `wind_kmh` for every point type.",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
                 },
                 "wind_gust_max_kmh": {
-                  "anyOf": [
-                    {
-                      "type": "number"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ],
-                  "description": "Daily peak wind gust, km/h. Derived from `hourly`'s `wind_gust_kmh` for every point type."
+                  "description": "Daily peak wind gust, km/h. Derived from `hourly`'s `wind_gust_kmh` for every point type.",
+                  "type": [
+                    "number",
+                    "null"
+                  ]
                 },
                 "hourly": {
                   "anyOf": [
@@ -860,59 +828,39 @@
                             "description": "ISO 8601 timestamp with UTC offset, in local Europe/Zurich time (e.g. \"2026-03-28T09:00:00+01:00\")"
                           },
                           "temperature_c": {
-                            "anyOf": [
-                              {
-                                "type": "number"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ],
-                            "description": "Temperature at this hour, in °C"
+                            "description": "Temperature at this hour, in °C",
+                            "type": [
+                              "number",
+                              "null"
+                            ]
                           },
                           "precip_mm": {
-                            "anyOf": [
-                              {
-                                "type": "number"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ],
-                            "description": "Precipitation sum for this hour, in mm"
+                            "description": "Precipitation sum for this hour, in mm",
+                            "type": [
+                              "number",
+                              "null"
+                            ]
                           },
                           "sunshine_minutes": {
-                            "anyOf": [
-                              {
-                                "type": "number"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ],
-                            "description": "Sunshine duration within this hour, in minutes"
+                            "description": "Sunshine duration within this hour, in minutes",
+                            "type": [
+                              "number",
+                              "null"
+                            ]
                           },
                           "wind_kmh": {
-                            "anyOf": [
-                              {
-                                "type": "number"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ],
-                            "description": "Mean wind speed for this hour, in km/h"
+                            "description": "Mean wind speed for this hour, in km/h",
+                            "type": [
+                              "number",
+                              "null"
+                            ]
                           },
                           "wind_gust_kmh": {
-                            "anyOf": [
-                              {
-                                "type": "number"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ],
-                            "description": "Peak wind gust for this hour, in km/h"
+                            "description": "Peak wind gust for this hour, in km/h",
+                            "type": [
+                              "number",
+                              "null"
+                            ]
                           }
                         },
                         "required": [
