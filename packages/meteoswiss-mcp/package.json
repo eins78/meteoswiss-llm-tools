@@ -82,7 +82,7 @@
     "@types/express": "^5.0.6",
     "@types/js-yaml": "^4.0.9",
     "@types/jsdom": "^28.0.0",
-    "@types/node": "^25.5.0",
+    "@types/node": "^26.0.0",
     "@types/turndown": "^5.0.6",
     "@typescript-eslint/eslint-plugin": "^8.57.2",
     "@typescript-eslint/parser": "^8.57.2",

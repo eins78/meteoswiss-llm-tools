@@ -10,7 +10,7 @@ concurrency:
 
 env:
   DOCKER_IMAGE: ghcr.io/eins78/meteoswiss-mcp
-  NODE_VERSION: 24
+  NODE_VERSION: 26
   PACKAGE_DIR: packages/meteoswiss-mcp
 
 jobs:
