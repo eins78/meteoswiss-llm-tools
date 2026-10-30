@@ -19,8 +19,11 @@ All data comes from the official MeteoSwiss Open Data platform — the same data
 
 This server is part of [meteoswiss-llm-tools](https://github.com/eins78/meteoswiss-llm-tools), an open-source showcase that implements the same data access both as an MCP server and as an agent skill — see the [skill vs. MCP case study](https://github.com/eins78/meteoswiss-llm-tools/blob/main/docs/skill-vs-mcp.md).
 
+**Documentation:** [code.178.is/meteoswiss-llm-tools](https://code.178.is/meteoswiss-llm-tools/) — user guide, running your own instance, and development.
+
 ## Quick Links
 
+- [Documentation](https://code.178.is/meteoswiss-llm-tools/)
 - [Get Started](#get-started)
 - [Available Tools](#available-tools)
 - [GitHub Repository](https://github.com/eins78/meteoswiss-llm-tools)

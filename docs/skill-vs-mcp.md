@@ -61,7 +61,7 @@ Requirements: Node.js 22+ or Docker to self-host — or nothing at all, using th
 | Weather-station search | ✅ recipe + `search-stations.sh` | ✅ `meteoswissStations` |
 | Forecast-point search (~6000 points) | ✅ recipe + `search-forecast-points.sh` | ✅ built into forecast location resolution |
 | Pollen data | ✅ recipe + `pollen.sh` | ✅ `meteoswissPollenData` |
-| Climate series (NBCN, decades back) | ❌ | ✅ `meteoswissClimateData` |
+| Climate series (NBCN, decades back) | ✅ recipe (monthly/yearly/daily files) | ✅ `meteoswissClimateData` |
 | MeteoSwiss website search + page fetch | ❌ | ✅ `search`, `fetch` |
 | Fuzzy station-name matching | ❌ (exact/substring grep; agent improvises) | ✅ |
 | Geocoding (address → nearest station) | ❌ | ✅ |
@@ -128,7 +128,7 @@ Stated plainly, so the comparison stays honest:
 - **No behavioral tests for the skill.** CI validates its structure (`skills` CLI), not whether the recipes still work against the live OGD endpoints. The MCP server has integration tests; the skill has none.
 - **No head-to-head benchmark.** Nothing here measures "same question, both implementations, which answers better/cheaper/faster." The eval suite is the natural foundation for that — it is future work.
 - **Context costs are reasoned, not measured** (see [Context cost](#context-cost)).
-- **Coverage is asymmetric.** The skill covers 5 of the server's 7 tool areas; climate series and website search/fetch are server-only.
+- **Coverage is asymmetric.** The skill covers 5 of the server's 7 tool areas; website search/fetch are server-only.
 - **One dataset, one domain.** MeteoSwiss OGD is friendly: free, no auth, no rate-limit drama. Datasets requiring auth, pagination, or write operations would shift the trade-offs toward the server.
 
 ## Related reading

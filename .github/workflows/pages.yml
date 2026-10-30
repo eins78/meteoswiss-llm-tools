@@ -4,10 +4,11 @@ on:
   push:
     branches: [main]
     paths: &docs-site-paths
-      # NOT repo-root docs/** — this site publishes only the eval runs + editorial about them
-      # (2026-07-18 re-scope), so changes to plans/sessionlogs/internal docs don't affect it.
+      # NOT repo-root docs/** — plans, sessionlogs, research and test reports are never published.
+      # The repo-root file below is the only one synced in (see scripts/sync-content.ts).
       - 'packages/meteoswiss-forecast-evals/docs/results/**'
       - 'packages/meteoswiss-docs-site/**'
+      - 'docs/skill-vs-mcp.md'
       - '.github/workflows/pages.yml'
   # Build-only validation on PRs — this package sits outside the root pnpm workspace, so
   # pr-ci.yml's `pnpm --filter meteoswiss-mcp` checks never touch it. The deploy job below is

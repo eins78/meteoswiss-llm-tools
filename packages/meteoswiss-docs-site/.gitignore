@@ -21,11 +21,10 @@ pnpm-debug.log*
 .DS_Store
 
 # content synced from outside this package by scripts/sync-content.ts — regenerated on every
-# `pnpm run dev`/`build`, never hand-edited. index.mdx (the homepage) is the one hand-authored
-# exception.
-src/content/docs/*
-!src/content/docs/index.mdx
+# `pnpm run dev`/`build`, never hand-edited. Everything else under src/content/docs/ is hand-authored.
+src/content/docs/runs/
+src/content/docs/evaluations/skill-vs-mcp.md
 public/forecast-evals-results/
 
-# runs.generated.json (the homepage's teaser-list data) is also sync-content.ts output.
+# runs.generated.json (the Evaluations page's teaser-list data) is also sync-content.ts output.
 src/data/

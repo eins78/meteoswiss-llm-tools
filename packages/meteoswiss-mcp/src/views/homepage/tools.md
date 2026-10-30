@@ -1,5 +1,7 @@
 # Available Tools
 
+Full reference with every parameter and example prompts: [documentation](https://code.178.is/meteoswiss-llm-tools/user/tools/).
+
 ## meteoswissLocalForecast
 
 Get a multi-day weather forecast for any Swiss location.

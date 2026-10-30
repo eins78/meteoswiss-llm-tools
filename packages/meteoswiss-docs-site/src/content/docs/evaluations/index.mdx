@@ -1,0 +1,27 @@
+---
+title: Evaluations
+description: How the design of the MeteoSwiss tools was tested - the skill-vs-MCP case study and the promptfoo eval runs.
+---
+
+import { LinkCard } from '@astrojs/starlight/components';
+import runs from '../../../data/runs.generated.json';
+
+The tools in this repository were designed with measurements, not guesses. This section collects the evidence.
+
+<LinkCard
+  title="Skill vs. MCP server"
+  description="The same data access built twice - as an Agent Skill and as an MCP server - and an honest comparison of the two."
+  href="skill-vs-mcp/"
+/>
+
+## Eval runs
+
+Eval runs testing how well LLMs use the tools: timestamp labelling, field shape, and what changes comprehension and what doesn't. Each run is a
+dated, immutable snapshot: a new finding adds a new run rather than editing an old one.
+
+{runs.map((run) => (
+  <LinkCard title={run.title} description={run.teaser} href={`../${run.href}`} />
+))}
+
+The eval suite lives in
+[`packages/meteoswiss-forecast-evals`](https://github.com/eins78/meteoswiss-llm-tools/tree/main/packages/meteoswiss-forecast-evals).
