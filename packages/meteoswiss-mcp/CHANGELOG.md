@@ -1,5 +1,13 @@
 # meteoswiss-mcp
 
+## 4.0.1 - 2026-10-31
+
+### Patch Changes
+
+- d0d10b5: The landing page now links to the new documentation site, https://code.178.is/meteoswiss-llm-tools/ (user guide, running your own instance, development). No change to tools or behaviour.
+- 93da8de: The container image now runs on Node.js 26 LTS (`node:26-alpine`, was `node:24-alpine`), and `@types/node` is `^26`. The supported range is unchanged: `engines.node` stays `>=22.0.0`, so installs from npm on Node 22 and 24 keep working.
+- 1d004c1: Update dependencies to fix published security advisories: `zod` 4.6.7 (GHSA-mrhx-c7xc-m3w5), `body-parser` 2.4.0 (GHSA-27r3-jxmh-p828), `qs`, `undici`, `fast-uri`, `ip-address`, `hono` and `@hono/node-server`, reached through `@modelcontextprotocol/sdk` 1.32.2, `express` 5.3.0 and `express-rate-limit`. No tool behaviour changes. `tools/list` now advertises nullable fields as `"type": ["string", "null"]` instead of `anyOf`; the two forms are equivalent JSON Schema.
+
 ## 4.0.0 - 2026-10-20
 
 ### Major Changes
