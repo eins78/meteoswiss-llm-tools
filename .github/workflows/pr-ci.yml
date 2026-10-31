@@ -18,10 +18,10 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
         
-      - name: Setup Node.js 24
+      - name: Setup Node.js 26
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: 24
+          node-version: 26
           cache: 'pnpm'
           
       - name: Install dependencies
@@ -40,6 +40,43 @@ jobs:
 
       - name: Run integration tests
         run: pnpm --filter meteoswiss-mcp run test:integration
+        env:
+          USE_TEST_FIXTURES: true
+
+  # meteoswiss-mcp is published with engines.node ">=22.0.0": test every supported even line that still
+  # gets updates. The job above (Node 26) keeps its name because it is a required status check.
+  node-compat:
+    name: Test on Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js ${{ matrix.node }}
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: ${{ matrix.node }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run lint (TypeScript + ESLint)
+        run: pnpm --filter meteoswiss-mcp run lint
+
+      - name: Run build (TypeScript compilation)
+        run: pnpm --filter meteoswiss-mcp run build
+
+      - name: Run tests
+        run: pnpm --filter meteoswiss-mcp test
         env:
           USE_TEST_FIXTURES: true
 
@@ -91,10 +128,10 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
 
-      - name: Setup Node.js 24
+      - name: Setup Node.js 26
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: 24
+          node-version: 26
           cache: 'pnpm'
 
       - name: Install dependencies
@@ -117,10 +154,10 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
 
-      - name: Setup Node.js 24
+      - name: Setup Node.js 26
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: 24
+          node-version: 26
 
       # `pnpm test` here = the OFFLINE scoring unit tests (ground truth + scorer):
       # `node --test src/*.test.ts`. No OpenRouter/LLM calls, no API keys, no cost.
@@ -148,10 +185,10 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
         
-      - name: Setup Node.js 24
+      - name: Setup Node.js 26
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: 24
+          node-version: 26
           cache: 'pnpm'
           
       - name: Install dependencies

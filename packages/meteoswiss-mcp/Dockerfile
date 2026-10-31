@@ -9,7 +9,7 @@
 
 # ------------------------------------------------------------------------------------------------
 # Stage 1: Build (full workspace install from the frozen lockfile, then build + prod deploy)
-FROM node:24-alpine AS builder
+FROM node:26-alpine AS builder
 WORKDIR /app
 
 # Run pnpm non-interactively (auto-confirm node_modules purge, no TTY in Docker build)
@@ -43,7 +43,7 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
 
 # ------------------------------------------------------------------------------------------------
 # Stage 2: Runtime (copy only the self-contained deployment)
-FROM node:24-alpine AS runtime
+FROM node:26-alpine AS runtime
 
 LABEL org.opencontainers.image.title="meteoswiss-mcp"
 LABEL org.opencontainers.image.description="MCP server for MeteoSwiss weather data"

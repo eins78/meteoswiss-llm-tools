@@ -38,7 +38,7 @@ jobs:
         uses: withastro/action@v6
         with:
           path: packages/meteoswiss-docs-site
-          node-version: 24
+          node-version: 26
           package-manager: pnpm@10.34.5
 
   deploy:
