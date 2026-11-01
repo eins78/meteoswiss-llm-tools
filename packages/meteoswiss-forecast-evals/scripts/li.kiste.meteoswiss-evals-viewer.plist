@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
+<!-- start-viewer.sh pins the viewer to 127.0.0.1 (scripts/loopback-listen.cjs) and no longer manages
+     `tailscale serve`; the tailnet mapping is a one-time setup, see the package README. -->
 <dict>
     <key>Label</key>
     <string>li.kiste.meteoswiss-evals-viewer</string>
