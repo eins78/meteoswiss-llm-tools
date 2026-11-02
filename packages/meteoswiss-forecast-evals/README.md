@@ -177,8 +177,13 @@ For interactive browsing of past runs without exporting anything, `promptfoo vie
 persistently on `mac-zrh` as a launchd LaunchAgent — it survives reboots/sleep and restarts on
 crash, and is exposed **only on the tailnet** (never the public internet) via `tailscale serve`.
 
-- **Source of truth**: `scripts/start-viewer.sh` (starts the viewer, re-asserts the Tailscale
-  serve mapping) + `scripts/li.kiste.meteoswiss-evals-viewer.plist` (launchd unit). The live
+`promptfoo view` has no host option and no authentication, and by default it listens on every
+network interface. `scripts/start-viewer.sh` therefore loads `scripts/loopback-listen.cjs`
+(`NODE_OPTIONS=--require`), which pins the listener to `127.0.0.1`; nothing on the local network
+can reach it. The tailnet reaches it only through the `tailscale serve` mapping below.
+
+- **Source of truth**: `scripts/start-viewer.sh` (starts the viewer on 127.0.0.1 via
+  `scripts/loopback-listen.cjs`) + `scripts/li.kiste.meteoswiss-evals-viewer.plist` (launchd unit). The live
   `~/Library/LaunchAgents/` entry is a **symlink** to the plist in this checkout — edit the repo
   file, then bootout/bootstrap to reload, per this workspace's launchd convention.
 - **Install** (from a `mac-zrh` checkout of this repo):
@@ -187,10 +192,23 @@ crash, and is exposed **only on the tailnet** (never the public internet) via `t
         ~/Library/LaunchAgents/li.kiste.meteoswiss-evals-viewer.plist
   launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/li.kiste.meteoswiss-evals-viewer.plist
   ```
+- **Tailnet mapping** (one-time; the script does not manage it). `tailscale serve` is denied to a
+  non-operator user, so make your user the operator first, then create the mapping. tailscaled
+  stores it and restores it after reboots and viewer restarts:
+  ```bash
+  sudo tailscale set --operator="$USER"
+  tailscale serve --bg --https=15500 http://127.0.0.1:15500
+  tailscale serve status
+  ```
+- **Check the bind**: the listener must be on `127.0.0.1`, not `*`. Tailscale holds separate
+  listeners on the tailnet addresses, which is expected:
+  ```bash
+  netstat -anv -p tcp | grep '\.15500 '
+  ```
 - **Verify**: `launchctl print gui/$(id -u)/li.kiste.meteoswiss-evals-viewer | grep -E 'runs|last exit'`
   (liveness — ask launchd, not the log). Logs (events only, not heartbeats):
   `~/Library/Logs/meteoswiss-evals-viewer.log`.
-- **Reload after editing** `start-viewer.sh` or the plist:
+- **Reload after editing** `start-viewer.sh`, `loopback-listen.cjs` or the plist:
   ```bash
   launchctl bootout   gui/$(id -u) ~/Library/LaunchAgents/li.kiste.meteoswiss-evals-viewer.plist
   launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/li.kiste.meteoswiss-evals-viewer.plist
@@ -206,8 +224,8 @@ generated/        committed prompts/expected-answers; gitignored run outputs (re
 docs/results/     published, dated findings (.md) + optional static run snapshots (.html)
 src/              fixture/ground-truth/question generation, scorer, summarize — see docs/spec.md
 scripts/          run.sh (wraps `promptfoo eval`), synth-7day-fixture.ts,
-                  start-viewer.sh + li.kiste.meteoswiss-evals-viewer.plist (persistent viewer,
-                  see "Live viewer" above)
+                  start-viewer.sh + loopback-listen.cjs + li.kiste.meteoswiss-evals-viewer.plist
+                  (persistent viewer, see "Live viewer" above)
 promptfooconfig.yaml         programmatic (lookup) slice — the primary eval
 promptfooconfig.judge.yaml   open-ended, Opus-judged slice — secondary quality check
 pnpm-workspace.yaml, pnpm-lock.yaml   this package's own, independent pnpm project
