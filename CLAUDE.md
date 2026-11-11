@@ -220,7 +220,7 @@ When implementing MCP tools:
 ## Environment Variables
 - `USE_TEST_FIXTURES`: When `true`, uses local test data instead of HTTP requests
 - `PORT`: Server port (default: 3000, not used in stdio mode)
-- `OGD_PARSE_CACHE_MAX_BYTES`: In-memory bound for parsed forecast indexes (default 268435456 = 256 MiB; one full station forecast run retains ~140 MB; `0` disables retention)
+- `OGD_PARSE_CACHE_MAX_BYTES`: In-memory bound for parsed forecast indexes (default 268435456 = 256 MiB; a forecast run is six files, or nine with ~140 MB parsed once any call asks for `detail: "sky"`; `0` disables retention)
 - `OGD_PARSE_WORKERS`: Worker threads for building forecast indexes (default `min(2, cores - 1)`; `0` builds on the main thread)
 
 ### Configuration Management Strategy

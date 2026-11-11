@@ -52,7 +52,7 @@ for climate series. Memory stays low and a restart is cheap.
 caused a production outage. Atomic writes use `write-file-atomic`, and empty-directory cleanup is age-gated, because both were sources of
 intermittent `ENOENT … rename` errors.
 
-**Forecast files are parsed once.** The forecast CSVs are about 290 MB. Instead of re-parsing on every request, each cached file version is
+**Forecast files are parsed once.** A forecast run is six CSVs, or nine (~290 MB on disk) once any call asks for `detail: "sky"`. Instead of re-parsing on every request, each cached file version is
 parsed once into a columnar, typed-array index, shared by concurrent requests (one download and one parse for N callers) and bounded by
 `OGD_PARSE_CACHE_MAX_BYTES`. The parse is a schema-specific byte scanner that accepts only the exact OGD layout and falls back to the generic
 CSV parser on any deviation; large files are built on worker threads. A cold forecast request dropped from about 12 s to under 1 s.

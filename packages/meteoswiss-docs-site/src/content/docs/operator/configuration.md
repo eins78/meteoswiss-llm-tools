@@ -54,7 +54,7 @@ Forecast files are large. Each cached file version is parsed once into a compact
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OGD_PARSE_CACHE_MAX_BYTES` | `268435456` | Memory bound (256 MiB) for parsed indexes; `0` disables retention. A full station forecast run retains about 140 MB |
+| `OGD_PARSE_CACHE_MAX_BYTES` | `268435456` | Memory bound (256 MiB) for parsed indexes; `0` disables retention. A forecast run is six files, or nine (~140 MB parsed) once any call asks for `detail: "sky"` |
 | `OGD_PARSE_WORKERS` | `min(2, cores - 1)` | Worker threads that build the index; `0` builds on the main thread |
 
 ## Website content cache (`search`, `fetch`)
