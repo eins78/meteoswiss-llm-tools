@@ -3,7 +3,8 @@
  * the cache file's identity.
  *
  * The disk cache stores raw CSV text; without this memo every request re-parses
- * it (a forecast run is ~290 MB across nine files). The memo holds a compact
+ * it (a forecast run is six files, or nine at ~290 MB on disk / ~140 MB parsed once any call
+ * asks for `detail: "sky"`). The memo holds a compact
  * derived form instead, so the parse happens once per cached file version.
  *
  * Contract:

@@ -680,7 +680,7 @@
     },
     {
       "name": "meteoswissLocalForecast",
-      "description": "Get a multi-day weather forecast for any Swiss location. Returns daily summaries (temperature, precipitation, sunshine, wind, weather icon) plus a hierarchical hourly breakdown of every series.\n\nThis uses official MeteoSwiss Open Data — the same forecasts powering the MeteoSwiss app and website.\n\nAccepts:\n- Postal codes: \"8001\" (Zurich), \"3000\" (Bern), \"1200\" (Geneva)\n- Station abbreviations: \"SMA\" (Zurich Fluntern), \"BER\" (Bern)\n- Place names: \"Zurich\", \"Basel\", \"Lugano\"\n\nCoverage: ~6000 Swiss locations (all postal codes + weather stations + mountain points).\nForecast horizon: up to 9 days. Updated hourly.\n\nEach day's summary fields: temperature_min_c, temperature_max_c, precipitation_total_mm,\nsunshine_total_minutes, wind_avg_kmh, wind_gust_max_kmh, weather, weather_icon_url.\n\nEach day also includes \"hourly\": one array of per-hour objects covering every series\ntogether — { time, temperature_c, precip_mm, sunshine_minutes, wind_kmh, wind_gust_kmh,\nweather_code, weather, cloud_low_pct, cloud_mid_pct, cloud_high_pct } — useful for judging\n*when* rain, sun, fog or wind is expected, not just the daily summary:\n- Each entry's \"time\" is already local wall-clock time for the location (Europe/Zurich),\n  with the UTC offset included, e.g. \"2026-07-09T14:00:00+02:00\". It is NOT UTC — do not\n  convert it.\n- \"weather\" / \"weather_code\" is MeteoSwiss's weather symbol (e.g. \"fog\", \"stratus\",\n  \"very cloudy, light rain\"), one value per hour, describing the 3 hours that end at\n  \"time\". The day's \"weather\" is one symbol for the daytime only. The cloud fields are the\n  cover at \"time\". The symbol does not always name low stratus: an \"overcast\" hour with\n  cloud_low_pct near 100 and little mid or high cloud is a low cloud deck.\n- A dry/calm/sunless hour is reported as its measured value (often 0), not omitted. A\n  fully dry day is still a full array of zero-precipitation hours, not an empty array.\n- Each field is independently null if just THAT series has no reading for a given hour —\n  the other fields for that same hour are still populated. An hour is omitted entirely\n  only when temperature, precipitation, sunshine, wind and gust are all missing for it.\n- \"hourly\" itself is null when no hourly breakdown exists for this location at all (a\n  total data gap); [] only when this location supports hourly data but none was available\n  for that specific day.\n- For weather stations, temperature_min_c/temperature_max_c/precipitation_total_mm are\n  MeteoSwiss's own official daily aggregates — a different, separately-curated product\n  from the hourly series shown alongside them. They can legitimately NOT match summing/\n  averaging the hourly entries for that day; this is expected, not a data error.\n  sunshine_total_minutes/wind_avg_kmh/wind_gust_max_kmh have no official daily product for\n  stations and are always derived from the hourly series. For postal codes/mountain\n  points, every summary field is derived from the same hourly series shown alongside it,\n  so it always matches summing/averaging that series exactly.",
+      "description": "Get a multi-day weather forecast for any Swiss location. Returns daily summaries (temperature, precipitation, sunshine, wind, weather icon) plus a hierarchical hourly breakdown of every series.\n\nThis uses official MeteoSwiss Open Data — the same forecasts powering the MeteoSwiss app and website.\n\nAccepts:\n- Postal codes: \"8001\" (Zurich), \"3000\" (Bern), \"1200\" (Geneva)\n- Station abbreviations: \"SMA\" (Zurich Fluntern), \"BER\" (Bern)\n- Place names: \"Zurich\", \"Basel\", \"Lugano\"\n\nCoverage: ~6000 Swiss locations (all postal codes + weather stations + mountain points).\nForecast horizon: up to 9 days. Updated hourly.\n\nEach day's summary fields: temperature_min_c, temperature_max_c, precipitation_total_mm,\nsunshine_total_minutes, wind_avg_kmh, wind_gust_max_kmh, weather, weather_icon_url.\n\nEach day also includes \"hourly\": one array of per-hour objects covering every series\ntogether — { time, temperature_c, precip_mm, sunshine_minutes, wind_kmh, wind_gust_kmh } —\nuseful for judging *when* rain, sun or wind is expected, not just the daily summary.\nWith detail: \"sky\", each hourly object also has weather_code, weather, cloud_low_pct,\ncloud_mid_pct and cloud_high_pct; use it for fog, stratus or low cloud questions:\n- Each entry's \"time\" is already local wall-clock time for the location (Europe/Zurich),\n  with the UTC offset included, e.g. \"2026-07-09T14:00:00+02:00\". It is NOT UTC — do not\n  convert it.\n- With detail: \"sky\": \"weather\" / \"weather_code\" is MeteoSwiss's weather symbol (e.g. \"fog\", \"stratus\",\n  \"very cloudy, light rain\"), one value per hour, describing the 3 hours that end at\n  \"time\". The day's \"weather\" is one symbol for the daytime only. The cloud fields are the\n  cover at \"time\". The symbol does not always name low stratus: an \"overcast\" hour with\n  cloud_low_pct near 100 and little mid or high cloud is a low cloud deck.\n- A dry/calm/sunless hour is reported as its measured value (often 0), not omitted. A\n  fully dry day is still a full array of zero-precipitation hours, not an empty array.\n- Each field is independently null if just THAT series has no reading for a given hour —\n  the other fields for that same hour are still populated. An hour is omitted entirely\n  only when temperature, precipitation, sunshine, wind and gust are all missing for it.\n- \"hourly\" itself is null when no hourly breakdown exists for this location at all (a\n  total data gap); [] only when this location supports hourly data but none was available\n  for that specific day.\n- For weather stations, temperature_min_c/temperature_max_c/precipitation_total_mm are\n  MeteoSwiss's own official daily aggregates — a different, separately-curated product\n  from the hourly series shown alongside them. They can legitimately NOT match summing/\n  averaging the hourly entries for that day; this is expected, not a data error.\n  sunshine_total_minutes/wind_avg_kmh/wind_gust_max_kmh have no official daily product for\n  stations and are always derived from the hourly series. For postal codes/mountain\n  points, every summary field is derived from the same hourly series shown alongside it,\n  so it always matches summing/averaging that series exactly.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -696,6 +696,15 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 9
+          },
+          "detail": {
+            "default": "basic",
+            "description": "Hourly detail. \"basic\" (default): each hour has time, temperature, precipitation, sunshine, wind and gust. \"sky\": each hour also has the MeteoSwiss weather symbol (e.g. fog, stratus) and the low, medium and high cloud cover. Use \"sky\" for questions about fog, stratus, low cloud or where the sun shines; the answer is about 75 % larger.",
+            "type": "string",
+            "enum": [
+              "basic",
+              "sky"
+            ]
           }
         },
         "required": [
@@ -863,6 +872,7 @@
                             ]
                           },
                           "weather_code": {
+                            "description": "MeteoSwiss weather symbol code (OGD jww003i0), one value per hour, describing the 3 hours that end at this time: 1-42 by day, 101-142 by night; 27 = stratus, 28 = fog.",
                             "anyOf": [
                               {
                                 "type": "integer",
@@ -872,8 +882,7 @@
                               {
                                 "type": "null"
                               }
-                            ],
-                            "description": "MeteoSwiss weather symbol code (OGD jww003i0), one value per hour, describing the 3 hours that end at this time: 1-42 by day, 101-142 by night; 27 = stratus, 28 = fog."
+                            ]
                           },
                           "weather": {
                             "description": "Text for weather_code, e.g. \"fog\", \"stratus\", \"very cloudy, light rain\"",
@@ -910,12 +919,7 @@
                           "precip_mm",
                           "sunshine_minutes",
                           "wind_kmh",
-                          "wind_gust_kmh",
-                          "weather_code",
-                          "weather",
-                          "cloud_low_pct",
-                          "cloud_mid_pct",
-                          "cloud_high_pct"
+                          "wind_gust_kmh"
                         ],
                         "additionalProperties": false
                       }

@@ -80,11 +80,6 @@ describe('meteoswissLocalForecast Tool', () => {
       sunshine_minutes: 0,
       wind_kmh: 11.0,
       wind_gust_kmh: 18.5,
-      weather_code: 27,
-      weather: 'stratus',
-      cloud_low_pct: 95,
-      cloud_mid_pct: 5,
-      cloud_high_pct: 25,
     });
 
     // Every daily summary must be derivable from (i.e. consistent with) the SAME
@@ -96,11 +91,11 @@ describe('meteoswissLocalForecast Tool', () => {
       sunshine_minutes: number | null;
       wind_kmh: number | null;
       wind_gust_kmh: number | null;
-      weather_code: number | null;
-      weather: string | null;
-      cloud_low_pct: number | null;
-      cloud_mid_pct: number | null;
-      cloud_high_pct: number | null;
+      weather_code?: number | null;
+      weather?: string | null;
+      cloud_low_pct?: number | null;
+      cloud_mid_pct?: number | null;
+      cloud_high_pct?: number | null;
     };
     const nonNull = (values: Array<number | null>): number[] =>
       values.filter((v): v is number => v !== null);
@@ -156,11 +151,6 @@ describe('meteoswissLocalForecast Tool', () => {
       sunshine_minutes: 0,
       wind_kmh: 3.5,
       wind_gust_kmh: 7.2,
-      weather_code: 101,
-      weather: 'clear',
-      cloud_low_pct: 0,
-      cloud_mid_pct: 0,
-      cloud_high_pct: 0,
     });
     expect(hourly2).toContainEqual({
       time: '2026-03-29T01:00:00+01:00',
@@ -169,11 +159,6 @@ describe('meteoswissLocalForecast Tool', () => {
       sunshine_minutes: 0,
       wind_kmh: 3.0,
       wind_gust_kmh: 6.5,
-      weather_code: 101,
-      weather: 'clear',
-      cloud_low_pct: 0,
-      cloud_mid_pct: 0,
-      cloud_high_pct: 0,
     });
     expect(hourly2).toContainEqual({
       time: '2026-03-29T03:00:00+02:00',
@@ -182,12 +167,43 @@ describe('meteoswissLocalForecast Tool', () => {
       sunshine_minutes: 0,
       wind_kmh: 2.5,
       wind_gust_kmh: 5.8,
-      weather_code: 101,
-      weather: 'clear',
-      cloud_low_pct: 5,
-      cloud_mid_pct: 0,
-      cloud_high_pct: 15,
     });
+  });
+
+  it('basic hourly entries have exactly the main fields', async () => {
+    // Without detail: "sky" the hourly objects must be byte-for-byte the pre-#183 shape —
+    // the five sky fields absent (no key, not null) for postal codes AND stations.
+    const bare = ['time', 'temperature_c', 'precip_mm', 'sunshine_minutes', 'wind_kmh', 'wind_gust_kmh'].sort();
+
+    const postal = await client.callTool('meteoswissLocalForecast', {
+      location: '8001',
+      days: 2,
+    });
+    expect(postal.isError).toBeFalsy();
+    const postalData = JSON.parse(postal.content[0].text);
+    let postalChecked = 0;
+    for (const day of postalData.forecast) {
+      for (const entry of day.hourly ?? []) {
+        expect(Object.keys(entry).sort()).toEqual(bare);
+        postalChecked++;
+      }
+    }
+    expect(postalChecked).toBeGreaterThan(0);
+
+    const station = await client.callTool('meteoswissLocalForecast', {
+      location: 'Napf',
+      days: 1,
+    });
+    expect(station.isError).toBeFalsy();
+    const stationData = JSON.parse(station.content[0].text);
+    let stationChecked = 0;
+    for (const day of stationData.forecast) {
+      for (const entry of day.hourly ?? []) {
+        expect(Object.keys(entry).sort()).toEqual(bare);
+        stationChecked++;
+      }
+    }
+    expect(stationChecked).toBeGreaterThan(0);
   });
 
   it('returns the weather symbol and cloud cover per hour for a postal code', async () => {
@@ -196,6 +212,7 @@ describe('meteoswissLocalForecast Tool', () => {
     const result = await client.callTool('meteoswissLocalForecast', {
       location: '8001',
       days: 2,
+      detail: 'sky',
     });
 
     expect(result.isError).toBeFalsy();
@@ -235,6 +252,7 @@ describe('meteoswissLocalForecast Tool', () => {
     const result = await client.callTool('meteoswissLocalForecast', {
       location: 'Napf',
       days: 1,
+      detail: 'sky',
     });
 
     expect(result.isError).toBeFalsy();

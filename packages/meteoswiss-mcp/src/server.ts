@@ -213,13 +213,14 @@ Each day's summary fields: temperature_min_c, temperature_max_c, precipitation_t
 sunshine_total_minutes, wind_avg_kmh, wind_gust_max_kmh, weather, weather_icon_url.
 
 Each day also includes "hourly": one array of per-hour objects covering every series
-together — { time, temperature_c, precip_mm, sunshine_minutes, wind_kmh, wind_gust_kmh,
-weather_code, weather, cloud_low_pct, cloud_mid_pct, cloud_high_pct } — useful for judging
-*when* rain, sun, fog or wind is expected, not just the daily summary:
+together — { time, temperature_c, precip_mm, sunshine_minutes, wind_kmh, wind_gust_kmh } —
+useful for judging *when* rain, sun or wind is expected, not just the daily summary.
+With detail: "sky", each hourly object also has weather_code, weather, cloud_low_pct,
+cloud_mid_pct and cloud_high_pct; use it for fog, stratus or low cloud questions:
 - Each entry's "time" is already local wall-clock time for the location (Europe/Zurich),
   with the UTC offset included, e.g. "2026-07-09T14:00:00+02:00". It is NOT UTC — do not
   convert it.
-- "weather" / "weather_code" is MeteoSwiss's weather symbol (e.g. "fog", "stratus",
+- With detail: "sky": "weather" / "weather_code" is MeteoSwiss's weather symbol (e.g. "fog", "stratus",
   "very cloudy, light rain"), one value per hour, describing the 3 hours that end at
   "time". The day's "weather" is one symbol for the daytime only. The cloud fields are the
   cover at "time". The symbol does not always name low stratus: an "overcast" hour with
