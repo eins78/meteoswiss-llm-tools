@@ -19,6 +19,7 @@ import { buildForecastIndexOffThread } from './ogd-forecast-pool.js';
 import { roundByUnit, roundNullable } from '../support/round-measurements.js';
 import { resolveForecastPoint } from './ogd-station-resolver.js';
 import { debugData } from '../support/logging.js';
+import { logSafe } from '../support/log-safe.js';
 import { OGD_COLLECTIONS, pointTypeFromId, SOURCE_ATTRIBUTION } from '../schemas/ogd-shared.js';
 import { weatherIconDescription, weatherIconUrl } from '../support/weather-icons.js';
 import type {
@@ -491,17 +492,6 @@ export async function getLocalForecast(
   // daily `weather` still comes from the official `jp2000d0` daily param).
   const paramsToFetch = forecastParamsFor(isStation, detail);
   const optionalParams = new Set(optionalParamsFor(isStation, detail));
-
-  /**
-   * Sanitize an error message for a single-line stderr entry (same style as `logSafe` in
-   * server.ts, SEC-10): truncate and JSON-stringify so embedded newlines cannot forge
-   * additional log lines.
-   */
-  const logSafe = (value: unknown, maxLength = 200): string => {
-    const str = typeof value === 'string' ? value : String(value);
-    const truncated = str.length > maxLength ? `${str.slice(0, maxLength)}…` : str;
-    return JSON.stringify(truncated);
-  };
 
   // Download all parameter CSVs concurrently. A failure of an OPTIONAL file (only the ones
   // "sky" adds — see `optionalParamsFor`) degrades to an empty map plus a warning so the

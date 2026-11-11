@@ -78,7 +78,9 @@ describe('getLocalForecast with a failed optional "sky" file', () => {
 
       const day = result.forecast[0];
       expect(day).toBeDefined();
-      for (const h of (day.hourly ?? []) as Hourly[]) {
+      const hourly = (day.hourly ?? []) as Hourly[];
+      expect(hourly.length).toBeGreaterThan(0);
+      for (const h of hourly) {
         expect(h.weather_code).toBeNull();
         expect(h.weather).toBeNull();
       }
