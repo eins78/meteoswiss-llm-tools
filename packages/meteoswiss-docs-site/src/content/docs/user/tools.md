@@ -32,7 +32,8 @@ description and the official icon URL. Each day also carries an `hourly` array w
 (`temperature_c`, `precip_mm`, `sunshine_minutes`, `wind_kmh`, `wind_gust_kmh`). The optional input `detail` defaults to `"basic"`;
 with `detail: "sky"` each hourly object also has `weather_code`, `weather`, `cloud_low_pct`, `cloud_mid_pct` and `cloud_high_pct` —
 `weather` is MeteoSwiss's symbol for the hour (for example fog or stratus) and the cloud fields are % of the sky. The five sky fields
-come only with `"sky"`, which makes the answer about 75 % larger. `hourly` is `null` when a location has no hourly data at all, and `[]` for a day without data.
+come only with `"sky"`, which makes the answer about 75 % larger. If one of the extra files cannot be loaded, the call still
+succeeds: the fields from that file are null and `warnings` names the file. `hourly` is `null` when a location has no hourly data at all, and `[]` for a day without data.
 
 Things worth knowing:
 
