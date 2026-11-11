@@ -213,16 +213,22 @@ Each day's summary fields: temperature_min_c, temperature_max_c, precipitation_t
 sunshine_total_minutes, wind_avg_kmh, wind_gust_max_kmh, weather, weather_icon_url.
 
 Each day also includes "hourly": one array of per-hour objects covering every series
-together — { time, temperature_c, precip_mm, sunshine_minutes, wind_kmh, wind_gust_kmh } —
-useful for judging *when* rain, sun, or wind is expected, not just the daily summary:
+together — { time, temperature_c, precip_mm, sunshine_minutes, wind_kmh, wind_gust_kmh,
+weather_code, weather, cloud_low_pct, cloud_mid_pct, cloud_high_pct } — useful for judging
+*when* rain, sun, fog or wind is expected, not just the daily summary:
 - Each entry's "time" is already local wall-clock time for the location (Europe/Zurich),
   with the UTC offset included, e.g. "2026-07-09T14:00:00+02:00". It is NOT UTC — do not
   convert it.
+- "weather" / "weather_code" is MeteoSwiss's weather symbol (e.g. "fog", "stratus",
+  "very cloudy, light rain"), one value per hour, describing the 3 hours that end at
+  "time". The day's "weather" is one symbol for the daytime only. The cloud fields are the
+  cover at "time". The symbol does not always name low stratus: an "overcast" hour with
+  cloud_low_pct near 100 and little mid or high cloud is a low cloud deck.
 - A dry/calm/sunless hour is reported as its measured value (often 0), not omitted. A
   fully dry day is still a full array of zero-precipitation hours, not an empty array.
 - Each field is independently null if just THAT series has no reading for a given hour —
   the other fields for that same hour are still populated. An hour is omitted entirely
-  only when every series is missing for it.
+  only when temperature, precipitation, sunshine, wind and gust are all missing for it.
 - "hourly" itself is null when no hourly breakdown exists for this location at all (a
   total data gap); [] only when this location supports hourly data but none was available
   for that specific day.

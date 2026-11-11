@@ -47,6 +47,31 @@ export const HourlyEntrySchema = z.object({
     .describe('Sunshine duration within this hour, in minutes'),
   wind_kmh: z.number().nullable().describe('Mean wind speed for this hour, in km/h'),
   wind_gust_kmh: z.number().nullable().describe('Peak wind gust for this hour, in km/h'),
+  weather_code: z
+    .number()
+    .int()
+    .nullable()
+    .describe(
+      'MeteoSwiss weather symbol code (OGD jww003i0), one value per hour, describing the 3 hours that end at this time: 1-42 by day, 101-142 by night; 27 = stratus, 28 = fog.'
+    ),
+  weather: z
+    .string()
+    .nullable()
+    .describe('Text for weather_code, e.g. "fog", "stratus", "very cloudy, light rain"'),
+  cloud_low_pct: z
+    .number()
+    .nullable()
+    .describe(
+      'Low cloud cover at this time, in % of the sky (0-100, OGD nprolohs). Fog and low stratus count as low cloud.'
+    ),
+  cloud_mid_pct: z
+    .number()
+    .nullable()
+    .describe('Medium-level cloud cover at this time, in % of the sky (0-100, OGD npromths)'),
+  cloud_high_pct: z
+    .number()
+    .nullable()
+    .describe('High cloud cover at this time, in % of the sky (0-100, OGD nprohihs)'),
 });
 export type HourlyEntry = z.infer<typeof HourlyEntrySchema>;
 
