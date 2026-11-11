@@ -32,8 +32,9 @@ import type { StacItem } from '../schemas/ogd-shared.js';
 /** Official daily aggregates — only available for stations (point_type_id=1) */
 const DAILY_PARAMS = ['tre200dx', 'tre200dn', 'rka150d0', 'jp2000d0'] as const;
 
-/** Hourly series params — available for all point types. jww003i0 (weather pictogram) is
- * 3-hourly and used only for daily icon selection (`pickDaytimeIcon`), not exposed per-hour. */
+/** Hourly series params — available for all point types. `jww003i0` (weather pictogram) is
+ * exposed per hour with `detail: "sky"` and is always fetched for non-stations because it
+ * also drives the daily icon (`pickDaytimeIcon`). */
 const HOURLY_PARAMS = [
   'tre200h0',
   'rre150h0',
@@ -43,6 +44,28 @@ const HOURLY_PARAMS = [
   'fu3010h1',
 ] as const;
 
+/** Sky-detail-only params — fetched (and exposed per hour) only when the caller asks for
+ * `detail: "sky"`: low, medium and high cloud cover, fraction 0-1. */
+const SKY_PARAMS = ['nprolohs', 'npromths', 'nprohihs'] as const;
+
+/**
+ * Which OGD params one forecast call fetches. "basic" fetches exactly what `main` fetches:
+ * non-stations the six hourly params (`jww003i0` stays — it makes the daily icon), stations
+ * the four daily aggregates plus those six WITHOUT `jww003i0` (their icon comes from the
+ * official `jp2000d0` daily param). "sky" adds the cloud-cover files: non-stations
+ * `nprolohs/npromths/nprohihs`, stations additionally `jww003i0` for the hourly symbol.
+ */
+export function forecastParamsFor(isStation: boolean, detail: 'basic' | 'sky'): readonly string[] {
+  if (detail === 'sky') {
+    return isStation
+      ? [...DAILY_PARAMS, ...HOURLY_PARAMS, ...SKY_PARAMS]
+      : [...HOURLY_PARAMS, ...SKY_PARAMS];
+  }
+  return isStation
+    ? [...DAILY_PARAMS, ...HOURLY_PARAMS.filter((p) => p !== 'jww003i0')]
+    : HOURLY_PARAMS;
+}
+
 /** Maps each exposed hourly series to its OGD param code, for `groupUnifiedHourlyByDate`. */
 const HOURLY_SERIES_PARAM = {
   temperature: 'tre200h0',
@@ -50,6 +73,10 @@ const HOURLY_SERIES_PARAM = {
   sunshine: 'sre000h0',
   wind: 'fu3010h0',
   windGust: 'fu3010h1',
+  weatherCode: 'jww003i0',
+  cloudLow: 'nprolohs',
+  cloudMid: 'npromths',
+  cloudHigh: 'nprohihs',
 } as const;
 
 /**
@@ -136,8 +163,9 @@ function todayZurich(): string {
 }
 
 /**
- * Group every hourly series (temperature, precipitation, sunshine, wind, wind gust) into one
- * unified per-hour object per timestamp — "Shape B" (see
+ * Group every hourly series (temperature, precipitation, sunshine, wind, wind gust — plus
+ * weather symbol and cloud cover when `sky` is true) into one unified per-hour object per
+ * timestamp — "Shape B" (see
  * packages/meteoswiss-forecast-evals/docs/results/2026-07-09-forecast-json-comprehension.md and
  * packages/meteoswiss-forecast-evals/docs/results/2026-07-11-hourly-multiseries-shape-refinement.md
  * for why this shape, and the wind-gust field specifically, were chosen over parallel
@@ -145,12 +173,14 @@ function todayZurich(): string {
  * Bucketed by local Europe/Zurich date (not raw UTC) — the same day boundary used everywhere
  * else — so a day's entries never spill across local midnight into a neighboring day.
  *
- * An hour is included whenever AT LEAST ONE series has a reading for it; each field is
+ * An hour is included whenever AT LEAST ONE of the five measured series (temperature,
+ * precipitation, sunshine, wind, wind gust) has a reading for it; each field is
  * independently `null` if that specific series has no reading for that hour (a genuine data
  * gap in just one series, not the whole hour). Entries within a day are chronological.
  */
 function groupUnifiedHourlyByDate(
-  paramData: Map<string, Map<string, number | null>>
+  paramData: Map<string, Map<string, number | null>>,
+  sky: boolean
 ): Map<string, HourlyEntry[]> {
   const empty = new Map<string, number | null>();
   const tempMap = paramData.get(HOURLY_SERIES_PARAM.temperature) ?? empty;
@@ -158,6 +188,10 @@ function groupUnifiedHourlyByDate(
   const sunshineMap = paramData.get(HOURLY_SERIES_PARAM.sunshine) ?? empty;
   const windMap = paramData.get(HOURLY_SERIES_PARAM.wind) ?? empty;
   const gustMap = paramData.get(HOURLY_SERIES_PARAM.windGust) ?? empty;
+  const weatherCodeMap = paramData.get(HOURLY_SERIES_PARAM.weatherCode) ?? empty;
+  const cloudLowMap = paramData.get(HOURLY_SERIES_PARAM.cloudLow) ?? empty;
+  const cloudMidMap = paramData.get(HOURLY_SERIES_PARAM.cloudMid) ?? empty;
+  const cloudHighMap = paramData.get(HOURLY_SERIES_PARAM.cloudHigh) ?? empty;
 
   const allTimestamps = new Set([
     ...tempMap.keys(),
@@ -193,6 +227,17 @@ function groupUnifiedHourlyByDate(
       wind_kmh,
       wind_gust_kmh,
     };
+    if (sky) {
+      const weather_code = weatherCodeMap.get(ts) ?? null;
+      const cloudLow = cloudLowMap.get(ts) ?? null;
+      const cloudMid = cloudMidMap.get(ts) ?? null;
+      const cloudHigh = cloudHighMap.get(ts) ?? null;
+      entry.weather_code = weather_code;
+      entry.weather = weather_code !== null ? weatherIconDescription(weather_code) : null;
+      entry.cloud_low_pct = roundNullable(cloudLow === null ? null : cloudLow * 100, '%');
+      entry.cloud_mid_pct = roundNullable(cloudMid === null ? null : cloudMid * 100, '%');
+      entry.cloud_high_pct = roundNullable(cloudHigh === null ? null : cloudHigh * 100, '%');
+    }
     const existing = byDate.get(date) ?? [];
     existing.push(entry);
     byDate.set(date, existing);
@@ -243,7 +288,8 @@ function summarizeHourlyEntries(entries: HourlyEntry[]): {
  */
 function buildStationForecast(
   paramData: Map<string, Map<string, number | null>>,
-  days: number
+  days: number,
+  sky: boolean
 ): DailyForecast[] {
   const today = todayZurich();
 
@@ -254,7 +300,7 @@ function buildStationForecast(
     ])
   );
 
-  const hourlyByDate = groupUnifiedHourlyByDate(paramData);
+  const hourlyByDate = groupUnifiedHourlyByDate(paramData, sky);
   // Distinguishes "no hourly breakdown exists for this point at all" (null — e.g. a station
   // whose forecast run genuinely has none of the hourly series, the way some observation
   // stations only report a subset of parameters) from "this point supports hourly data but
@@ -337,23 +383,25 @@ function pickDaytimeIcon(entries: Map<string, number | null>, date: string): num
 /**
  * Build a daily forecast from hourly data: every summary field is derived from the same
  * `hourly[]` series it's shown alongside (see `summarizeHourlyEntries`), so they cannot
- * disagree with each other. Icon selection stays separate (`jww003i0` is 3-hourly and only
- * ever used for daily icon selection, never exposed per-hour).
+ * disagree with each other. Daily icon selection stays separate: `jww003i0` is exposed per
+ * hour in `hourly[]` AND used for the daily icon (`pickDaytimeIcon`).
  */
 function buildHourlyAggregatedForecast(
   paramData: Map<string, Map<string, number | null>>,
-  days: number
+  days: number,
+  sky: boolean
 ): DailyForecast[] {
   const hourlyIcon = paramData.get('jww003i0') ?? new Map<string, number | null>();
-  const hourlyByDate = groupUnifiedHourlyByDate(paramData);
+  const hourlyByDate = groupUnifiedHourlyByDate(paramData, sky);
   // Distinguishes "no hourly breakdown exists for this location at all" (null — every one of
   // the 5 hourly series came back empty across every timestamp, not just for one day) from
   // "this location supports hourly data but a specific day has none" ([] per day, handled
   // below) — the same distinction `buildStationForecast` already makes for stations.
   const hourlyTrulyUnavailable = hourlyByDate.size === 0;
 
-  // The date set is the union of days with hourly-series data AND days with icon data (icon is
-  // fetched independently, 3-hourly), NOT just `hourlyByDate.keys()` alone — a day where every
+  // The date set is the union of days with hourly-series data AND days with icon data (the
+  // icon is fetched for all point types and drives the daily icon), NOT just
+  // `hourlyByDate.keys()` alone — a day where every
   // one of the 5 hourly series is a total gap (but the icon still reported) would otherwise be
   // dropped from `forecast[]` entirely instead of appearing with `hourly: []`, silently hiding
   // a day the forecast run does cover.
@@ -385,12 +433,16 @@ function buildHourlyAggregatedForecast(
 }
 
 /**
- * Fetch and assemble the local forecast for a given location.
+ * Fetch and assemble the local forecast for a given location. `detail` is optional here
+ * (defaults to "basic") so direct callers that predate the `detail` input — tests, scripts,
+ * other packages — keep the pre-#183 answer without naming `detail` everywhere; the MCP
+ * tool's schema fills in the same default before calling.
  */
 export async function getLocalForecast(
-  params: GetLocalForecastParams
+  params: Omit<GetLocalForecastParams, 'detail'> & { detail?: 'basic' | 'sky' }
 ): Promise<LocalForecastResponse> {
   const { location, days } = params;
+  const detail = params.detail ?? 'basic';
 
   // Resolve location and get latest STAC item concurrently
   debugData('[ogd-forecast] Resolving location: %s', location);
@@ -414,15 +466,10 @@ export async function getLocalForecast(
   const pointIdStr = String(point.point_id);
   const pointTypeStr = String(point.point_type_id);
 
-  // Non-station points only need the hourly series (aggregated to daily summaries). Stations
-  // fetch BOTH: their official daily aggregates AND the hourly series (for `hourly[]` and the
-  // two series with no official daily product — sunshine, wind; see `buildStationForecast`) —
-  // except `jww003i0`, which stations never use (their icon comes from the official `jp2000d0`
-  // daily param instead; `groupUnifiedHourlyByDate` doesn't touch `jww003i0` either), so
-  // fetching it for stations would be a wasted upstream CSV download.
-  const paramsToFetch = isStation
-    ? [...DAILY_PARAMS, ...HOURLY_PARAMS.filter((p) => p !== 'jww003i0')]
-    : HOURLY_PARAMS;
+  // "basic" fetches exactly `main`'s list (see `forecastParamsFor`); "sky" adds the cloud
+  // cover files — and, for stations, `jww003i0` so they get the hourly symbol too (their
+  // daily `weather` still comes from the official `jp2000d0` daily param).
+  const paramsToFetch = forecastParamsFor(isStation, detail);
 
   // Download all parameter CSVs concurrently
   const paramEntries = await Promise.all(
@@ -449,8 +496,8 @@ export async function getLocalForecast(
 
   // Build daily forecast from the appropriate data source
   const forecast = isStation
-    ? buildStationForecast(paramData, days)
-    : buildHourlyAggregatedForecast(paramData, days);
+    ? buildStationForecast(paramData, days, detail === 'sky')
+    : buildHourlyAggregatedForecast(paramData, days, detail === 'sky');
 
   return {
     location: {

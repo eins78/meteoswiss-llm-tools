@@ -1,6 +1,6 @@
 /**
  * MeteoSwiss weather pictogram code mapping.
- * Maps numeric codes from jp2000d0 (daily) and jww003i0 (3-hourly) parameters
+ * Maps numeric codes from jp2000d0 (daily) and jww003i0 (hourly) parameters
  * to human-readable weather descriptions.
  *
  * Source: MeteoSwiss official icon spreadsheet and opendata documentation.

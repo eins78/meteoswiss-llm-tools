@@ -3,7 +3,8 @@
  * the cache file's identity.
  *
  * The disk cache stores raw CSV text; without this memo every request re-parses
- * it (a forecast run is ~178 MB across six files). The memo holds a compact
+ * it (a forecast run is six files, or nine at ~290 MB on disk / ~140 MB parsed once any call
+ * asks for `detail: "sky"`). The memo holds a compact
  * derived form instead, so the parse happens once per cached file version.
  *
  * Contract:
@@ -40,7 +41,7 @@ function envBytes(name: string, fallback: number): number {
 }
 
 /** Retained-bytes ceiling for parsed forms. `0` disables retention (single-flight still applies). */
-const PARSE_CACHE_MAX_BYTES = envBytes('OGD_PARSE_CACHE_MAX_BYTES', 134_217_728); // 128 MiB
+const PARSE_CACHE_MAX_BYTES = envBytes('OGD_PARSE_CACHE_MAX_BYTES', 268_435_456); // 256 MiB
 
 const entries = new Map<string, Entry>();
 

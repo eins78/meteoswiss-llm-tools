@@ -119,7 +119,7 @@ The local forecast collection is particularly valuable — it provides the **sam
 | `treq10h0` | Temperature (10th percentile) | Hourly | C |
 | `treq90h0` | Temperature (90th percentile) | Hourly | C |
 | `rre150h0` | Precipitation (hourly total) | Hourly | mm |
-| `rre003i0` | Precipitation (3-hour total) | 3-hourly | mm |
+| `rre003i0` | Precipitation (3-hour total) | Hourly (each value: preceding 3 h) | mm |
 | `rka150d0` | Precipitation (daily total) | Daily | mm |
 | `fu3010h0` | Wind speed (hourly mean) | Hourly | km/h |
 | `fu3010h1` | Wind gust peak (hourly max) | Hourly | km/h |
@@ -130,7 +130,7 @@ The local forecast collection is particularly valuable — it provides the **sam
 | `npromths` | Medium cloud cover | Hourly | fraction |
 | `nprohihs` | High cloud cover | Hourly | fraction |
 | `zprfr0hs` | Zero-degree level | Hourly | m |
-| `jww003i0` | MeteoSwiss weather pictogram (3h) | 3-hourly | Code |
+| `jww003i0` | MeteoSwiss weather pictogram (3h) | Hourly (each value: preceding 3 h) | Code |
 | `jp2000d0` | MeteoSwiss pictogram (daily) | Daily | Code |
 
 ---

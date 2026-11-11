@@ -91,6 +91,11 @@ describe('meteoswissLocalForecast Tool', () => {
       sunshine_minutes: number | null;
       wind_kmh: number | null;
       wind_gust_kmh: number | null;
+      weather_code?: number | null;
+      weather?: string | null;
+      cloud_low_pct?: number | null;
+      cloud_mid_pct?: number | null;
+      cloud_high_pct?: number | null;
     };
     const nonNull = (values: Array<number | null>): number[] =>
       values.filter((v): v is number => v !== null);
@@ -165,6 +170,112 @@ describe('meteoswissLocalForecast Tool', () => {
     });
   });
 
+  it('basic hourly entries have exactly the main fields', async () => {
+    // Without detail: "sky" the hourly objects must be byte-for-byte the pre-#183 shape —
+    // the five sky fields absent (no key, not null) for postal codes AND stations.
+    const bare = ['time', 'temperature_c', 'precip_mm', 'sunshine_minutes', 'wind_kmh', 'wind_gust_kmh'].sort();
+
+    const postal = await client.callTool('meteoswissLocalForecast', {
+      location: '8001',
+      days: 2,
+    });
+    expect(postal.isError).toBeFalsy();
+    const postalData = JSON.parse(postal.content[0].text);
+    let postalChecked = 0;
+    for (const day of postalData.forecast) {
+      for (const entry of day.hourly ?? []) {
+        expect(Object.keys(entry).sort()).toEqual(bare);
+        postalChecked++;
+      }
+    }
+    expect(postalChecked).toBeGreaterThan(0);
+
+    const station = await client.callTool('meteoswissLocalForecast', {
+      location: 'Napf',
+      days: 1,
+    });
+    expect(station.isError).toBeFalsy();
+    const stationData = JSON.parse(station.content[0].text);
+    let stationChecked = 0;
+    for (const day of stationData.forecast) {
+      for (const entry of day.hourly ?? []) {
+        expect(Object.keys(entry).sort()).toEqual(bare);
+        stationChecked++;
+      }
+    }
+    expect(stationChecked).toBeGreaterThan(0);
+  });
+
+  it('returns the weather symbol and cloud cover per hour for a postal code', async () => {
+    // Fixture jww003i0.csv has one row per UTC hour on 2026-03-28; the three cloud-cover
+    // fixtures only cover a few hours, so later hours must read null cloud fields.
+    const result = await client.callTool('meteoswissLocalForecast', {
+      location: '8001',
+      days: 2,
+      detail: 'sky',
+    });
+
+    expect(result.isError).toBeFalsy();
+    const data = JSON.parse(result.content[0].text);
+    const day1 = data.forecast.find((d: { date: string }) => d.date === '2026-03-28');
+    expect(day1).toBeDefined();
+    const at = (time: string): { weather_code: number | null; weather: string | null; cloud_low_pct: number | null; cloud_mid_pct: number | null; cloud_high_pct: number | null } =>
+      day1.hourly.find((h: { time: string }) => h.time === time);
+
+    // Fog at 08:00 local (07 UTC), stratus one hour later — two neighbouring hours
+    // differ, proving the symbol really is per hour.
+    expect(at('2026-03-28T08:00:00+01:00').weather_code).toBe(28);
+    expect(at('2026-03-28T08:00:00+01:00').weather).toBe('fog');
+    expect(at('2026-03-28T09:00:00+01:00').weather_code).toBe(27);
+    expect(at('2026-03-28T09:00:00+01:00').weather).toBe('stratus');
+
+    // Cloud cover 09 UTC → local 10:00, as whole percent.
+    expect(at('2026-03-28T10:00:00+01:00').cloud_low_pct).toBe(60);
+    expect(at('2026-03-28T10:00:00+01:00').cloud_mid_pct).toBe(20);
+    expect(at('2026-03-28T10:00:00+01:00').cloud_high_pct).toBe(50);
+
+    // 0.29 rounds to 29; '-' in the file is a genuine null.
+    expect(at('2026-03-28T11:00:00+01:00').cloud_low_pct).toBe(29);
+    expect(at('2026-03-28T11:00:00+01:00').cloud_high_pct).toBeNull();
+
+    // No cloud row at 12 UTC → all three cloud fields null.
+    expect(at('2026-03-28T13:00:00+01:00').weather_code).toBe(14);
+    expect(at('2026-03-28T13:00:00+01:00').cloud_low_pct).toBeNull();
+    expect(at('2026-03-28T13:00:00+01:00').cloud_mid_pct).toBeNull();
+    expect(at('2026-03-28T13:00:00+01:00').cloud_high_pct).toBeNull();
+  });
+
+  it('returns the weather symbol and cloud cover per hour for a station', async () => {
+    // Napf (point 48): station fixture rows carry the hourly symbol (jww003i0) and the
+    // cloud cover (nprolohs/npromths/nprohihs) at 11 UTC on 2026-03-26 (12:00+01:00),
+    // while the day's `weather` still comes from the official daily jp2000d0 (code 19).
+    const result = await client.callTool('meteoswissLocalForecast', {
+      location: 'Napf',
+      days: 1,
+      detail: 'sky',
+    });
+
+    expect(result.isError).toBeFalsy();
+    const data = JSON.parse(result.content[0].text);
+    const day = data.forecast[0];
+    expect(day.date).toBe('2026-03-26');
+    const entry = day.hourly.find((h: { time: string }) => h.time === '2026-03-26T12:00:00+01:00');
+    expect(entry).toBeDefined();
+    expect(entry.weather_code).toBe(3);
+    expect(entry.weather).toBe('partly sunny, thick passing clouds');
+    expect(entry.cloud_low_pct).toBe(10);
+    expect(entry.cloud_mid_pct).toBe(30);
+    expect(entry.cloud_high_pct).toBe(80);
+    // The daily icon is still the official daily aggregate, not the hourly symbol.
+    expect(day.weather).toBe('very cloudy, intermittent snow');
+    // jww003i0 starts later than the measured series, so early hours exist with no symbol.
+    const night = day.hourly.find((h: { time: string }) => h.time === '2026-03-26T01:00:00+01:00');
+    expect(night).toBeDefined();
+    expect(night.temperature_c).not.toBeNull();
+    expect(night.weather_code).toBeNull();
+    expect(night.weather).toBeNull();
+  });
+
   it('reports a per-field null for a missing hourly reading without omitting the whole hour (sparse data)', async () => {
     // Fixture sre000h0.csv deliberately has a '-' (no-data marker) at UTC 2026-03-28T12:00
     // (local 13:00+01:00) — a normally-sunny midday hour. Every OTHER series still has a
@@ -194,7 +305,7 @@ describe('meteoswissLocalForecast Tool', () => {
   });
 
   it('still includes a day whose 5 hourly series are a total gap, as hourly: [] rather than dropping the day (issue #101 Copilot review)', async () => {
-    // Fixture jww003i0.csv (icon, 3-hourly) has rows for 2026-03-30, but none of
+    // Fixture jww003i0.csv (icon, hourly) has rows for 2026-03-30, but none of
     // tre200h0/rre150h0/sre000h0/fu3010h0/fu3010h1 do — a day the forecast run genuinely
     // covers (icon data exists), but with a complete gap across every hourly reading series.
     // The day must still appear in `forecast[]` with `hourly: []` and null summary fields,

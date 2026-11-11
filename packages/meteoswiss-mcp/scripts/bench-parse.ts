@@ -1,7 +1,7 @@
 /**
  * Micro-benchmark for the forecast CSV parse alone (no network, no MCP).
  *
- * Reads the six hourly forecast CSVs of one run from disk and builds the per-point
+ * Reads the nine hourly forecast CSVs of one run from disk and builds the per-point
  * index for each, which is the work a cold forecast request does. Prints one
  * number, `parse_ms` (median over the runs of the summed read+build time), and
  * the process peak RSS.
@@ -29,7 +29,17 @@ import { lookupForecastSeries, type ForecastIndex } from '../src/data/ogd-foreca
 import { buildForecastIndexOffThread } from '../src/data/ogd-forecast-pool.js';
 import type { MemoBuild } from '../src/data/ogd-parse-memo.js';
 
-const PARAMS = ['tre200h0', 'rre150h0', 'jww003i0', 'sre000h0', 'fu3010h0', 'fu3010h1'] as const;
+const PARAMS = [
+  'tre200h0',
+  'rre150h0',
+  'jww003i0',
+  'nprolohs',
+  'npromths',
+  'nprohihs',
+  'sre000h0',
+  'fu3010h0',
+  'fu3010h1',
+] as const;
 
 function findDir(): string {
   if (process.env.PARSE_BENCH_DIR) return process.env.PARSE_BENCH_DIR;
@@ -49,7 +59,7 @@ function fileFor(dir: string, param: string): string {
   return path.join(dir, name);
 }
 
-/** Read and index all six files concurrently, the way a forecast request does. */
+/** Read and index all nine files concurrently, the way a forecast request does. */
 async function buildAll(dir: string): Promise<Map<string, MemoBuild<ForecastIndex>>> {
   const entries = await Promise.all(
     PARAMS.map(

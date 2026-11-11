@@ -75,6 +75,9 @@ function resolveFixturePath(url: string): string | null {
     'tre200h0',
     'rre150h0',
     'jww003i0',
+    'nprolohs',
+    'npromths',
+    'nprohihs',
     'sre000h0',
     'fu3010h0',
     'fu3010h1',
@@ -120,7 +123,7 @@ const CACHE_DIR = process.env.OGD_CACHE_DIR || path.join(os.tmpdir(), 'meteoswis
 const DIR_REAP_MIN_AGE_MS = envNumber('OGD_CACHE_DIR_REAP_MIN_AGE_MS', 60_000);
 
 /** Total-bytes ceiling for the on-disk cache before LRU eviction kicks in. */
-const CACHE_MAX_BYTES = envNumber('OGD_CACHE_MAX_BYTES', 268_435_456); // 256 MiB
+const CACHE_MAX_BYTES = envNumber('OGD_CACHE_MAX_BYTES', 536_870_912); // 512 MiB
 
 /**
  * Resolve a cache key to an absolute path and assert it stays under CACHE_DIR.

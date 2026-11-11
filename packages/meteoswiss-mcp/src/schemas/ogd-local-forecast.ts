@@ -21,6 +21,13 @@ export const GetLocalForecastParamsSchema = z.object({
     .optional()
     .default(5)
     .describe('Number of forecast days (1-9, default 5)'),
+  detail: z
+    .enum(['basic', 'sky'])
+    .optional()
+    .default('basic')
+    .describe(
+      'Hourly detail. "basic" (default): each hour has time, temperature, precipitation, sunshine, wind and gust. "sky": each hour also has the MeteoSwiss weather symbol (e.g. fog, stratus) and the low, medium and high cloud cover. Use "sky" for questions about fog, stratus, low cloud or where the sun shines; the answer is about 75 % larger.'
+    ),
 });
 export type GetLocalForecastParams = z.infer<typeof GetLocalForecastParamsSchema>;
 
@@ -30,6 +37,9 @@ export type GetLocalForecastParams = z.infer<typeof GetLocalForecastParamsSchema
  * packages/meteoswiss-forecast-evals/docs/results/2026-07-09-forecast-json-comprehension.md
  * and packages/meteoswiss-forecast-evals/docs/results/2026-07-11-hourly-multiseries-shape-refinement.md
  * for the gust/all-flat follow-up).
+ * The five "sky" fields (`weather_code`, `weather`, `cloud_low_pct`, `cloud_mid_pct`,
+ * `cloud_high_pct`) are present ONLY when the caller asks for `detail: "sky"` — with the
+ * default "basic" they are absent (no key), keeping the answer byte-for-byte the pre-#183 one.
  * Each field is independently nullable — an hour is included whenever at least one series has
  * a reading for it, even if others are missing for that specific hour.
  */
@@ -47,6 +57,36 @@ export const HourlyEntrySchema = z.object({
     .describe('Sunshine duration within this hour, in minutes'),
   wind_kmh: z.number().nullable().describe('Mean wind speed for this hour, in km/h'),
   wind_gust_kmh: z.number().nullable().describe('Peak wind gust for this hour, in km/h'),
+  weather_code: z
+    .number()
+    .int()
+    .nullable()
+    .optional()
+    .describe(
+      'MeteoSwiss weather symbol code (OGD jww003i0), one value per hour, describing the 3 hours that end at this time: 1-42 by day, 101-142 by night; 27 = stratus, 28 = fog.'
+    ),
+  weather: z
+    .string()
+    .nullable()
+    .optional()
+    .describe('Text for weather_code, e.g. "fog", "stratus", "very cloudy, light rain"'),
+  cloud_low_pct: z
+    .number()
+    .nullable()
+    .optional()
+    .describe(
+      'Low cloud cover at this time, in % of the sky (0-100, OGD nprolohs). Fog and low stratus count as low cloud.'
+    ),
+  cloud_mid_pct: z
+    .number()
+    .nullable()
+    .optional()
+    .describe('Medium-level cloud cover at this time, in % of the sky (0-100, OGD npromths)'),
+  cloud_high_pct: z
+    .number()
+    .nullable()
+    .optional()
+    .describe('High cloud cover at this time, in % of the sky (0-100, OGD nprohihs)'),
 });
 export type HourlyEntry = z.infer<typeof HourlyEntrySchema>;
 
