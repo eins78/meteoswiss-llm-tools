@@ -63,6 +63,8 @@ This run asks the same question for the five new fields:
 
 Reproduce: `pnpm run symbol:dryrun`, `symbol:smoke`, `symbol:eval`, `symbol:eval:opus-1d`, then
 `pnpm run symbol:summarize generated/results-symbol.json generated/results-symbol-opus-1d.json`.
+The noise check: `pnpm run symbol:eval:tiny-5d-repeat`, then
+`pnpm run symbol:summarize generated/results-symbol-tiny-5d-run2.json`.
 
 ## Results
 
@@ -121,6 +123,27 @@ Per model:
 - The 1 °C boundary in the freezing-fog question (02:00 is exactly 1.0 °C, not below 1) caught
   `gpt-5-nano`, and on the 1-day arm both cheap models too.
 
+### Repeat run — the tiny tier at 5 days (noise check)
+
+The two tiny models ran both 5-day arms a second time with `--no-cache`
+(`pnpm run symbol:eval:tiny-5d-repeat`, 76 rows, none from the cache), the same day and inputs.
+
+| 14 July questions, tiny 5d | main | pr183 | Δ |
+|---|---|---|---|
+| run 1 | 72.0% (18/28) | 59.5% (14/28) | −12.5 |
+| run 2 | 66.1% (16/28) | 54.2% (12/28) | −11.9 |
+| both runs (n = 56 per arm) | 69.0% (34/56) | 56.8% (26/56) | **−12.2** |
+
+| per model, Δ 5d | run 1 | run 2 | both |
+|---|---|---|---|
+| tiny/gpt-5-nano | −14.3 | −6.0 | −10.1 |
+| tiny/ministral-8b | −10.7 | −17.9 | −14.3 |
+
+- **The tier drop repeats:** −12.5 and −11.9, and both models drop in both runs.
+- **One model's score moves a lot between runs** at temperature 0: `gpt-5-nano` on the same `main-5d`
+  input scored 67.9 % then 56.0 %. Read per-model numbers as noise-level; the tier delta is the stable one.
+- **New questions, run 2:** tiny 51.7 % on `pr183-5d` and 90.0 % declines on `main-5d`, the same as run 1.
+
 ### Tokens
 
 Mean prompt tokens per call, Haiku's tokenizer: 2,492 / 3,908 / 11,313 / 18,453 for
@@ -141,9 +164,9 @@ prompt. The other tokenizers give +49 to +51 % and +54 to +57 % (`gpt-5-nano`: 9
 
 ## Limits
 
-- **Small samples.** 28 rows per tier and arm; one question is 3.6 points. One run, no repeats. The
-  tiny drop is in both tiny models and in one kind of question, but it is near the noise level
-  seen per model in the cheap tier.
+- **Small samples.** 28 rows per tier and arm; one question is 3.6 points. Only the tiny tier at 5
+  days was repeated (see "Repeat run"): its drop held (−12.5, −11.9). The other tiers and the
+  1-day arms ran once; one model's score moved up to 12 points between two runs on the same input.
 - **Frontier at 5 days is one model** (`gemini-3.1-pro`); Opus was left out of the 5-day arms to
   stay in budget.
 - **Mock data**, not a captured forecast; decoy days put a little sun one or two hours outside
@@ -167,3 +190,6 @@ prompt. The other tokenizers give +49 to +51 % and +54 to +57 % (`gpt-5-nano`: 9
 - **Real: USD 3.47**, the change in the `usage` field of OpenRouter's `GET /api/v1/key` for the
   eval key, read before the smoke and after the last run (101.4990 → 104.9720; daily usage
   0 → 3.4730).
+- Repeat run (tiny tier, 5 days): token-based estimate USD 0.107; **real USD 0.0432** (104.9720 →
+  105.0152, read after the counter had stayed the same for one minute). The real cost is lower
+  than the estimate; why was not checked. **Total for this doc: USD 3.52.**
