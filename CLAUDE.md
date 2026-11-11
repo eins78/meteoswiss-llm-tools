@@ -220,7 +220,7 @@ When implementing MCP tools:
 ## Environment Variables
 - `USE_TEST_FIXTURES`: When `true`, uses local test data instead of HTTP requests
 - `PORT`: Server port (default: 3000, not used in stdio mode)
-- `OGD_PARSE_CACHE_MAX_BYTES`: In-memory bound for parsed forecast indexes (default 134217728 = 128 MiB; one full station forecast run retains ~100 MB; `0` disables retention)
+- `OGD_PARSE_CACHE_MAX_BYTES`: In-memory bound for parsed forecast indexes (default 268435456 = 256 MiB; one full station forecast run retains ~140 MB; `0` disables retention)
 - `OGD_PARSE_WORKERS`: Worker threads for building forecast indexes (default `min(2, cores - 1)`; `0` builds on the main thread)
 
 ### Configuration Management Strategy
@@ -381,7 +381,7 @@ For a **skill-facing change** (anything under `packages/meteoswiss-skills/`), ad
   request re-parsed ~178 MB. The memo keeps a columnar per-point index (typed arrays, not `CsvRow`
   objects: those cost hundreds of MB per file), keyed by cache key and versioned `mtimeMs:size`.
   Single-flight covers the cold path too (one download + one parse for N concurrent callers). The
-  byte bound (`OGD_PARSE_CACHE_MAX_BYTES`, default 128 MiB) is what releases an old forecast run: a
+  byte bound (`OGD_PARSE_CACHE_MAX_BYTES`, default 256 MiB) is what releases an old forecast run: a
   new run is a new cache key, so the version check alone never would. A failed disk write returns
   the built value un-memoised, same best-effort rule as `cacheWriteBestEffort`. The cold parse is a
   schema-specific byte scanner (`ogd-forecast-scan.ts`) over the file `Buffer`: it accepts only the

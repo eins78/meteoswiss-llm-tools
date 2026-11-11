@@ -29,7 +29,8 @@ ahead, updated hourly.
 
 **Returns** per day: minimum and maximum temperature, precipitation total, sunshine minutes, mean wind and maximum gust, a weather
 description and the official icon URL. Each day also carries an `hourly` array with one object per hour covering every series
-(`temperature_c`, `precip_mm`, `sunshine_minutes`, `wind_kmh`, `wind_gust_kmh`). `hourly` is `null` when a location has no hourly data at all, and `[]` for a day without data.
+(`temperature_c`, `precip_mm`, `sunshine_minutes`, `wind_kmh`, `wind_gust_kmh`, `weather_code`, `weather`, `cloud_low_pct`, `cloud_mid_pct`,
+`cloud_high_pct`). `weather` is MeteoSwiss's symbol for the hour (for example fog or stratus); the cloud fields are % of the sky. `hourly` is `null` when a location has no hourly data at all, and `[]` for a day without data.
 
 Things worth knowing:
 

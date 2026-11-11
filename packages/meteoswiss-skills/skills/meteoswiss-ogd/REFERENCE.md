@@ -58,11 +58,14 @@ Available for all point types (stations, postal codes, mountains). One value per
 | `sre000h0` | Hourly sunshine duration | min |
 | `fu3010h0` | Hourly mean wind speed | km/h |
 | `fu3010h1` | Hourly wind gust peak (max) | km/h |
-| `jww003i0` | 3-hourly weather pictogram code | — |
+| `jww003i0` | Weather pictogram code, one value per hour, for the 3 hours ending at the timestamp | — |
+| `nprolohs` | Low cloud cover | fraction 0-1 |
+| `npromths` | Medium cloud cover | fraction 0-1 |
+| `nprohihs` | High cloud cover | fraction 0-1 |
 
 ## Weather Icon Codes — Day
 
-Codes used in `jp2000d0` (daily) and `jww003i0` (3-hourly) parameters.
+Codes used in `jp2000d0` (daily) and `jww003i0` (hourly) parameters.
 
 SVG icon URL: `https://www.meteoschweiz.admin.ch/static/resources/weather-symbols/{CODE}.svg`
 

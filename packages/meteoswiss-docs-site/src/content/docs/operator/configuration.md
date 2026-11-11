@@ -41,7 +41,7 @@ fetched data is still returned.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `OGD_CACHE_DIR` | `<os tmpdir>/meteoswiss-ogd` | Directory for cached files. Mount a volume here to keep the cache across restarts |
-| `OGD_CACHE_MAX_BYTES` | `268435456` | Size bound (256 MiB); oldest files are pruned beyond it |
+| `OGD_CACHE_MAX_BYTES` | `536870912` | Size bound (512 MiB); oldest files are pruned beyond it |
 | `OGD_CACHE_TTL_REALTIME` | `60000` | Current weather and pollen readings (ms) |
 | `OGD_CACHE_TTL_FORECAST` | `3600000` | Forecast data, 1 hour (ms) |
 | `OGD_CACHE_TTL_METADATA` | `86400000` | Station and forecast-point lists, 24 hours (ms) |
@@ -54,7 +54,7 @@ Forecast files are large. Each cached file version is parsed once into a compact
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OGD_PARSE_CACHE_MAX_BYTES` | `134217728` | Memory bound (128 MiB) for parsed indexes; `0` disables retention. A full station forecast run retains about 100 MB |
+| `OGD_PARSE_CACHE_MAX_BYTES` | `268435456` | Memory bound (256 MiB) for parsed indexes; `0` disables retention. A full station forecast run retains about 140 MB |
 | `OGD_PARSE_WORKERS` | `min(2, cores - 1)` | Worker threads that build the index; `0` builds on the main thread |
 
 ## Website content cache (`search`, `fetch`)
