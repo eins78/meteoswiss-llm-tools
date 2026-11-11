@@ -225,6 +225,8 @@ cloud_mid_pct and cloud_high_pct; use it for fog, stratus or low cloud questions
   "time". The day's "weather" is one symbol for the daytime only. The cloud fields are the
   cover at "time". The symbol does not always name low stratus: an "overcast" hour with
   cloud_low_pct near 100 and little mid or high cloud is a low cloud deck.
+- With detail: "sky", "warnings" appears only when one of the extra files could not be
+  loaded; the fields from that file are then null for every hour.
 - A dry/calm/sunless hour is reported as its measured value (often 0), not omitted. A
   fully dry day is still a full array of zero-precipitation hours, not an empty array.
 - Each field is independently null if just THAT series has no reading for a given hour —

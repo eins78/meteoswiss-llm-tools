@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { forecastParamsFor } from '../../src/data/ogd-local-forecast.js';
+import {
+  forecastParamsFor,
+  optionalParamsFor,
+} from '../../src/data/ogd-local-forecast.js';
 import { GetLocalForecastParamsSchema } from '../../src/schemas/ogd-local-forecast.js';
 
 describe('forecastParamsFor', () => {
@@ -66,6 +69,30 @@ describe('forecastParamsFor', () => {
         expect(param.startsWith('npro')).toBe(false);
       }
     }
+  });
+});
+
+describe('optionalParamsFor', () => {
+  it('is empty for "basic" regardless of point type', () => {
+    expect(optionalParamsFor(false, 'basic')).toEqual([]);
+    expect(optionalParamsFor(true, 'basic')).toEqual([]);
+  });
+
+  it('lists the three cloud cover files for a sky non-station', () => {
+    expect(optionalParamsFor(false, 'sky')).toEqual(['nprolohs', 'npromths', 'nprohihs']);
+  });
+
+  it('adds the hourly weather symbol for a sky station', () => {
+    expect(optionalParamsFor(true, 'sky')).toEqual([
+      'jww003i0',
+      'nprolohs',
+      'npromths',
+      'nprohihs',
+    ]);
+  });
+
+  it('never makes jww003i0 optional for a sky non-station (it makes the daily icon)', () => {
+    expect(optionalParamsFor(false, 'sky')).not.toContain('jww003i0');
   });
 });
 
