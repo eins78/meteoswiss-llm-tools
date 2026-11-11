@@ -114,6 +114,22 @@ The runner starts the MCP server itself if none is listening (and reads the Open
 key from the env, `.env`, or the macOS keychain item `openrouter-evals`). Results are
 only comparable within one run — live data moves — so rows are never cached.
 
+## The hourly symbol track (PR #183)
+
+`src/symbol-cloud.ts` measures the five hourly fields PR #183 adds (`weather_code`, `weather`,
+`cloud_low_pct`, `cloud_mid_pct`, `cloud_high_pct`): July's 14 multi-series questions plus 5 fog
+and cloud questions, on the shipped shape vs the PR shape, at 1 and 5 days. Own tests file and
+config (`generated/symbol-tests.json`, `promptfooconfig.symbol.yaml`), so `pnpm run eval` does not
+grow. Results: [`docs/results/2026-11-11-hourly-symbol-cloud.md`](./docs/results/2026-11-11-hourly-symbol-cloud.md).
+
+```bash
+pnpm run symbol:dryrun         # echo provider, $0
+pnpm run symbol:smoke          # gemini-3.1-flash-lite, 76 rows (~$0.19)
+pnpm run symbol:eval           # 5 models x 4 arms (~$2.8; flash-lite rows come from the smoke's cache)
+pnpm run symbol:eval:opus-1d   # opus-4.8 on the 1-day arms only (~$0.6)
+pnpm run symbol:summarize generated/results-symbol.json generated/results-symbol-opus-1d.json
+```
+
 ## Reading the output
 
 `pnpm run summarize` prints, in order:
