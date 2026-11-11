@@ -130,6 +130,10 @@ pnpm run symbol:eval:opus-1d   # opus-4.8 on the 1-day arms only (~$0.6)
 pnpm run symbol:summarize generated/results-symbol.json generated/results-symbol-opus-1d.json
 ```
 
+The opt-in follow-up (`detail: "sky"`) adds `pnpm run symbol:sky-recheck` (real tool output of
+three checkouts, compared with `cmp`; header of `src/sky-recheck-fixtures.ts`) and
+`pnpm run symbol:eval:tiny-5d-optin` (tiny tier on `main-5d`, `--no-cache`, ~$0.04).
+
 ## Reading the output
 
 `pnpm run summarize` prints, in order:

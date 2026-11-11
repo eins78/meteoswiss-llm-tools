@@ -193,3 +193,66 @@ prompt. The other tokenizers give +49 to +51 % and +54 to +57 % (`gpt-5-nano`: 9
 - Repeat run (tiny tier, 5 days): token-based estimate USD 0.107; **real USD 0.0432** (104.9720 →
   105.0152, read after the counter had stayed the same for one minute). The real cost is lower
   than the estimate; why was not checked. **Total for this doc: USD 3.52.**
+
+## Opt-in follow-up (2026-11-11)
+
+After the runs above, PR #183 changed (head `5746849`): the five fields are now opt-in.
+`meteoswissLocalForecast` takes `detail: "basic" | "sky"`, default `"basic"`; only `"sky"` adds
+the five fields (and fetches the three cloud-cover files). The question: **is the default answer
+the same as `main`'s, so the tiny-tier loss above is gone?**
+
+### Shape check on real tool output (no model calls)
+
+`src/sky-recheck-fixtures.ts` imports the real `getLocalForecast` and `GetLocalForecastParamsSchema`
+of three checkouts of meteoswiss-mcp, `main` (`0b5531a`), the new head (`5746849`) and the previous
+head (`da39200`, the shape measured above), and calls them back to back with one shared OGD disk
+cache. Each answer is written as the tool's text (`JSON.stringify(result, null, 2)`). Two places,
+because a station takes a different code path than other points; default `days` (5):
+
+| place | `main` | new head, default | new head, `detail: "sky"` | old head `da39200` |
+|---|---|---|---|---|
+| Zürich (postal-code point) | 28,465 B, `eb446135` | 28,465 B, `eb446135` | 48,549 B, `397fc35e` | 48,549 B, `397fc35e` |
+| `BER` (station Bern / Zollikofen) | 28,489 B, `61780db9` | 28,489 B, `61780db9` | 48,617 B, `cef6074f` | 48,617 B, `cef6074f` |
+
+(sha256, first 8 hex digits.)
+
+- **One forecast run for all eight answers:** the shared cache held one set of files,
+  `vnut12.lssw.202611112100.*` (13 CSVs), and all answers carry the same `generated`.
+- **New head, default = `main`, byte for byte** (`cmp`), at both places. No hourly object has any
+  of the five keys.
+- **New head, `"sky"` = old head `da39200`, byte for byte.** All 120 hourly objects (5 days × 24)
+  have the five fields. Against `main` the `"sky"` answer adds 600 lines, five per hour.
+
+### Tiny tier, 5 days, opt-in default
+
+The questions' ground truth belongs to this suite's mock data, so the arm runs on it. Because the
+default answer is `main`'s byte for byte, the opt-in default arm is `main-5d`, unchanged: this run
+is a third sample of it (`pnpm run symbol:eval:tiny-5d-optin`, 38 rows, `--no-cache`, none from the
+cache, 0 errors). Prompt tokens per call are the same as in run 2 (`gpt-5-nano` 9,686,
+`ministral-8b` 11,481).
+
+| 14 July questions, tiny 5d | `main` shape | `pr183` shape (always the five fields) |
+|---|---|---|
+| run 1 | 72.0% (18/28) | 59.5% (14/28) |
+| run 2 | 66.1% (16/28) | 54.2% (12/28) |
+| run 3 = opt-in default | **72.0% (18/28)** | not run |
+| pooled | 70.0% (52/84) | 56.8% (26/56) |
+
+- Per model, run 3: `gpt-5-nano` 67.9 %, `ministral-8b` 76.2 %.
+- New questions on the opt-in default: 90.0 % (9/10) correct declines, as in runs 1 and 2.
+
+### Verdict
+
+**With the default input the tiny-tier loss is gone:** the answer is `main`'s byte for byte, and
+the tiny tier scores 72.0 % on it (`main` over three runs: 70.0 %). The `"sky"` answer is the
+`pr183` shape measured above: the tiny models lose about 12 points at 5 days, and cheap and
+frontier models read the new fields well. Not tested: whether models choose `detail: "sky"` for a
+fog or cloud question (the prompt has no tool description).
+
+Reproduce the shape check: `pnpm install --filter meteoswiss-mcp` in a checkout of each commit, then
+`OGD_CACHE_DIR=<new dir> pnpm run symbol:sky-recheck --main <main> --head <head> --old <old> --out <dir> Zürich BER`
+and `cmp` the files.
+
+Cost: estimate before the run USD 0.042 (run 2's `main-5d` tokens); token-based after the run
+USD 0.0422; **real USD 0.0155** (105.0152 → 105.0307, read after the counter had stayed the same
+for one minute). **Total for this doc: USD 3.53** (101.4990 → 105.0307).
