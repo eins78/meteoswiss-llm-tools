@@ -52,9 +52,8 @@ This run asks the same question for the five new fields:
   frontier numbers are `gemini-3.1-pro` alone.
 - **Rows:** 4 arms × 19 questions × 5 models + 2 arms × 19 × Opus = **418 graded rows**, one run,
   temperature 0.
-- **Verdict rules**, written down and committed before the full run (home-workspace
-  `experiments/2026-11-11-meteoswiss-situation-map/LOG.md`, 19:06): on the 5-day arms, 14 July
-  questions, 28 rows per tier and arm:
+- **Verdict rules**, written down and committed before the full run (19:06 11.11): on the 5-day
+  arms, 14 July questions, 28 rows per tier and arm:
   - *harm* in a tier = pr183 scores 7.2 points or more below main (two questions' worth);
   - *help* = the new questions score ≥ 80 % on `pr183-5d` in each tier, and the decline scores
     ≥ 80 % on `main-5d` in each tier;
