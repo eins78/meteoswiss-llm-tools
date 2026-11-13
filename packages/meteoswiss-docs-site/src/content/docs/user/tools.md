@@ -3,13 +3,14 @@ title: Tools reference
 description: Every tool of the MeteoSwiss MCP server - what it answers, its parameters, and example prompts.
 ---
 
-The server exposes seven tools. The weather tools read [MeteoSwiss Open Government Data](https://opendatadocs.meteoswiss.ch/);
+The server exposes eight tools. The weather tools read [MeteoSwiss Open Government Data](https://opendatadocs.meteoswiss.ch/);
 `search` and `fetch` read the MeteoSwiss website. Every tool declares an output schema, so clients see the response shape in `tools/list`
 and receive the result as `structuredContent` (the same JSON also comes back as text).
 
 | Tool | Answers | Source |
 |------|---------|--------|
 | [`meteoswissLocalForecast`](#meteoswisslocalforecast) | What will the weather be like at a place? | OGD forecast |
+| [`meteoswissWeatherSituation`](#meteoswissweathersituation) | Where in Switzerland is it sunny, foggy or wet at a given hour? | OGD forecast, MeteoSwiss forecast regions |
 | [`meteoswissCurrentWeather`](#meteoswisscurrentweather) | What is the weather right now? | OGD measurements |
 | [`meteoswissStations`](#meteoswissstations) | Which stations exist, and where? | OGD station metadata |
 | [`meteoswissPollenData`](#meteoswisspollendata) | How high is the pollen load? | OGD pollen network |
@@ -42,6 +43,49 @@ Things worth knowing:
 - A dry hour is reported as `0`, not omitted. A field is `null` only when that one series has no reading for that hour.
 
 **Try:** "Will it rain in Bern tomorrow afternoon?" · "Wie wird das Wetter in Lugano am Wochenende?"
+
+## meteoswissWeatherSituation
+
+The weather over the whole country at one hour: MeteoSwiss's hourly weather symbol at all ~5800 forecast points, grouped into ten
+weather categories and counted per [forecast region](https://www.meteoswiss.admin.ch/services-and-publications/applications/forecast-regions.html)
+and altitude band. For area questions: where it is sunny, how high the fog reaches, whether the sun shines above it.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `time` | string | yes | The hour, in local Swiss time: `"2026-11-14T10:00"`. A time with an offset (as `meteoswissLocalForecast` returns it) works too |
+| `region` | string | no | One of the seven region ids below; default all seven |
+| `bands` | number[] | no | Altitude band edges in m, ascending; default `[500, 1000, 1500, 2000]`, `[]` for one band |
+
+**Returns** the counted hour (`valid`), the forecast run, the number of points, and per region its points, its most frequent category
+and its altitude bands. Each band has its points, the share of each category in whole percent (`pct`, adding up to 100) and the most
+frequent category. A `legend` explains the categories in the answer. The answer is about 3 KB.
+
+| Region id | MeteoSwiss name |
+|-----------|-----------------|
+| `jura` | Jura |
+| `mittelland` | Mittelland (Swiss Plateau) |
+| `alpennordhang` | Alpennordhang (northern Alps and Prealps) |
+| `wallis` | Wallis (Valais) |
+| `engadin` | Engadin |
+| `nordundmittelbuenden` | Nord- und Mittelbünden (northern and central Grisons) |
+| `alpensuedseite` | Alpensüdseite (southern side of the Alps) |
+
+Categories: `sunny`, `clear_night`, `partly_sunny`, `cloudy`, `high_cloud`, `fog_or_stratus`, `rain`, `sleet`, `snow`, `thunder`.
+
+Things worth knowing:
+
+- **Fog and low stratus need the cloud cover.** MeteoSwiss's symbol often shows a low cloud deck as "overcast". An overcast or partly
+  sunny hour with low cloud of at least 80 % and medium and high cloud below 50 % counts as `fog_or_stratus`. If a cloud cover file
+  cannot be loaded, this rule is off and `warnings` says so.
+- **Points, not area.** The forecast points are postal code centres, weather stations and mountain points: dense in towns and the
+  lowlands, sparse in the mountains. A band with few points says little.
+- **Regions.** The seven regions are MeteoSwiss's own split of the country. MeteoSwiss does not publish them as Open Data: the server
+  downloads them from the MeteoSwiss website and keeps them for 30 days (Source: MeteoSwiss; see
+  [Configuration](../../operator/configuration/)). About 50 points (the Urseren valley, some border peaks and passes) lie outside
+  all seven; they are counted in the nearest region.
+- An hour the forecast run does not cover is an error that names the hours it has.
+
+**Try:** "Where is it sunny on Saturday at 10:00?" · "Wie hoch reicht der Nebel morgen früh?"
 
 ## meteoswissCurrentWeather
 

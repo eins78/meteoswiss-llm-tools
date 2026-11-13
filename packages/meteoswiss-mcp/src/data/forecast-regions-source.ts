@@ -14,35 +14,40 @@
 
 import { envNumber, PINNED_CACHE_DIR } from './ogd-data-store.js';
 
-/** The seven regions that split the country, in north-to-south order. */
-export const FORECAST_REGIONS = [
-  { id: 'jura', names: { de: 'Jura', fr: 'Jura', it: 'Giura' } },
-  { id: 'mittelland', names: { de: 'Mittelland', fr: 'Moyen-Pays', it: 'Altopiano' } },
-  {
-    id: 'alpennordhang',
-    names: { de: 'Alpennordhang', fr: 'Versant nord des Alpes', it: 'Versante nordalpino' },
-  },
-  { id: 'wallis', names: { de: 'Wallis', fr: 'Valais', it: 'Vallese' } },
-  { id: 'engadin', names: { de: 'Engadin', fr: 'Engadine', it: 'Engadina' } },
-  {
-    id: 'nordundmittelbuenden',
-    names: {
-      de: 'Nord- und Mittelbünden',
-      fr: 'Nord et Centre des Grisons',
-      it: 'Nord e centro dei Grigioni',
-    },
-  },
-  {
-    id: 'alpensuedseite',
-    names: { de: 'Alpensüdseite', fr: 'Sud des Alpes', it: 'Sud delle Alpi' },
-  },
+/** Ids of the seven regions that split the country, in north-to-south order. */
+export const FORECAST_REGION_IDS = [
+  'jura',
+  'mittelland',
+  'alpennordhang',
+  'wallis',
+  'engadin',
+  'nordundmittelbuenden',
+  'alpensuedseite',
 ] as const;
 
 /** Id of one of the seven forecast regions. */
-export type ForecastRegionId = (typeof FORECAST_REGIONS)[number]['id'];
+export type ForecastRegionId = (typeof FORECAST_REGION_IDS)[number];
 
 /** Region names as MeteoSwiss writes them (its English pages use the German names). */
-export type ForecastRegionNames = (typeof FORECAST_REGIONS)[number]['names'];
+export type ForecastRegionNames = { readonly de: string; readonly fr: string; readonly it: string };
+
+const REGION_NAMES: Record<ForecastRegionId, ForecastRegionNames> = {
+  jura: { de: 'Jura', fr: 'Jura', it: 'Giura' },
+  mittelland: { de: 'Mittelland', fr: 'Moyen-Pays', it: 'Altopiano' },
+  alpennordhang: { de: 'Alpennordhang', fr: 'Versant nord des Alpes', it: 'Versante nordalpino' },
+  wallis: { de: 'Wallis', fr: 'Valais', it: 'Vallese' },
+  engadin: { de: 'Engadin', fr: 'Engadine', it: 'Engadina' },
+  nordundmittelbuenden: {
+    de: 'Nord- und Mittelbünden',
+    fr: 'Nord et Centre des Grisons',
+    it: 'Nord e centro dei Grigioni',
+  },
+  alpensuedseite: { de: 'Alpensüdseite', fr: 'Sud des Alpes', it: 'Sud delle Alpi' },
+};
+
+/** The seven regions with their names, in the order of {@link FORECAST_REGION_IDS}. */
+export const FORECAST_REGIONS: readonly { id: ForecastRegionId; names: ForecastRegionNames }[] =
+  FORECAST_REGION_IDS.map((id) => ({ id, names: REGION_NAMES[id] }));
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;

@@ -63,6 +63,7 @@ The MCP server is implemented using:
    - `/health` - Health check endpoint
 4. **Tools** (`src/tools/`, `src/data/`): MCP tools for weather data
    - `meteoswissLocalForecast`: Multi-day forecasts for ~6000 Swiss locations (postal codes, stations, place names)
+   - `meteoswissWeatherSituation`: The weather over all ~5800 forecast points at one hour, counted per MeteoSwiss forecast region × altitude band × weather category
    - `meteoswissCurrentWeather`: Real-time measurements from ~300 automatic stations (~160 full weather + ~140 precipitation-only)
    - `meteoswissStations`: Station discovery and search by name, canton, or coordinates
    - `meteoswissPollenData`: Pollen concentration monitoring from ~15 stations
@@ -408,6 +409,14 @@ For a **skill-facing change** (anything under `packages/meteoswiss-skills/`), ad
   turn a 30-day cache into a download every few hours. A point outside all seven (about 50: Urseren, border
   peaks and passes) takes the region with the nearest boundary, marked `method: 'nearest'`.
   `scripts/check-forecast-regions.ts` is the live check (network, by hand).
+- **`meteoswissWeatherSituation` counts points, not area** (`ogd-weather-situation.ts`, `weather-situation-count.ts`,
+  `support/weather-categories.ts`): it reads the files `meteoswissLocalForecast` reads with `detail: "sky"`
+  (`jww003i0` plus the three cloud cover files) through the same caches, so it downloads nothing of its own. The 42+42
+  symbol codes fold into ten categories; a cloudy or partly sunny hour under a low deck (low ≥ 0.8, medium and high
+  < 0.5) counts as `fog_or_stratus`, because the symbol often shows low stratus as "overcast". The symbol file is
+  required; a failed cloud file turns the rule off with a warning. Counting is pure (`countSituation` over samples),
+  so its tests use synthetic points; the fixture rows (28.03.2026 07–11 UTC, see the forecasts fixture README) are a
+  smoke test of the whole path. Shares use largest-remainder rounding so they add up to 100.
 
 ## References
 

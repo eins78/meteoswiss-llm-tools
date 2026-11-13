@@ -128,3 +128,35 @@ export function lookupForecastSeries(
   }
   return out;
 }
+
+/**
+ * Id of a timestamp in the index's interned table, for {@link forecastValueAt}.
+ *
+ * @param index - Index from {@link buildForecastIndex}
+ * @param ts - `Date` as in the CSV (`YYYYMMDDhhmm`, UTC)
+ * @returns The id, or -1 if no row of the file has this timestamp
+ */
+export function timestampId(index: ForecastIndex, ts: string): number {
+  return index.timestampTable.indexOf(ts);
+}
+
+/**
+ * One point's value at one timestamp, without building its whole series.
+ * Duplicate dates resolve last-write-wins, like {@link lookupForecastSeries}.
+ *
+ * @param index - Index from {@link buildForecastIndex}
+ * @param key - `point_id:point_type_id`, e.g. `"800100:2"`
+ * @param tsId - From {@link timestampId}
+ * @returns The value; NaN if missing, or if the point or timestamp is not in the file
+ */
+export function forecastValueAt(index: ForecastIndex, key: string, tsId: number): number {
+  if (tsId < 0) return NaN;
+  const series = index.points.get(key);
+  if (series === undefined) return NaN;
+  let value = NaN;
+  const end = series.offset + series.length;
+  for (let i = series.offset; i < end; i++) {
+    if (index.timestamps[i] === tsId) value = index.values[i] ?? NaN;
+  }
+  return value;
+}

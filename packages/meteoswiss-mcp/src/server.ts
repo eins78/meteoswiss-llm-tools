@@ -17,6 +17,13 @@ import {
 import type { GetLocalForecastParams } from './schemas/ogd-local-forecast.js';
 import { getLocalForecast } from './data/ogd-local-forecast.js';
 import {
+  GetWeatherSituationParamsSchema,
+  WeatherSituationResponseSchema,
+  WEATHER_SITUATION_DESCRIPTION,
+} from './schemas/ogd-weather-situation.js';
+import type { GetWeatherSituationParams } from './schemas/ogd-weather-situation.js';
+import { getWeatherSituation } from './data/ogd-weather-situation.js';
+import {
   GetCurrentWeatherParamsSchema,
   CurrentWeatherResponseSchema,
 } from './schemas/ogd-current-weather.js';
@@ -263,6 +270,39 @@ cloud_mid_pct and cloud_high_pct; use it for fog, stratus or low cloud questions
               type: 'text' as const,
               text: `Failed to get local forecast: ${errorMessage}`,
             },
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // Register the weather-situation tool (OGD forecast + MeteoSwiss forecast regions)
+  debugServer('Registering tool: meteoswissWeatherSituation');
+  server.registerTool(
+    'meteoswissWeatherSituation',
+    {
+      description: WEATHER_SITUATION_DESCRIPTION,
+      inputSchema: GetWeatherSituationParamsSchema.shape,
+      outputSchema: WeatherSituationResponseSchema.shape,
+    },
+    async (params: GetWeatherSituationParams) => {
+      const _t0 = performance.now();
+      try {
+        debugTools('meteoswissWeatherSituation called with params: %O', params);
+        const result = await getWeatherSituation(params);
+        recordToolCall('meteoswissWeatherSituation', performance.now() - _t0);
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+          structuredContent: result,
+        };
+      } catch (error: unknown) {
+        logToolError('Error in meteoswissWeatherSituation tool', error);
+        recordToolCall('meteoswissWeatherSituation', performance.now() - _t0);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        return {
+          content: [
+            { type: 'text' as const, text: `Failed to get the weather situation: ${errorMessage}` },
           ],
           isError: true,
         };

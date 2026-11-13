@@ -148,13 +148,14 @@ describe('MCP Server Integration Tests', () => {
 
       // List tools
       const tools = await client.listTools();
-      expect(tools.tools).toHaveLength(7);
+      expect(tools.tools).toHaveLength(8);
 
       // Check that we have all tools
       const toolNames = tools.tools.map(t => t.name);
       expect(toolNames).toContain('search');
       expect(toolNames).toContain('fetch');
       expect(toolNames).toContain('meteoswissLocalForecast');
+      expect(toolNames).toContain('meteoswissWeatherSituation');
       expect(toolNames).toContain('meteoswissCurrentWeather');
       expect(toolNames).toContain('meteoswissStations');
       expect(toolNames).toContain('meteoswissPollenData');
