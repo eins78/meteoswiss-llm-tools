@@ -154,6 +154,12 @@ export const LocalForecastResponseSchema = z.object({
   }),
   generated: z.string().describe('Timestamp the forecast was generated (ISO 8601)'),
   forecast: z.array(DailyForecastSchema).describe('One entry per forecast day, in date order'),
+  warnings: z
+    .array(z.string())
+    .optional()
+    .describe(
+      'Present only when part of the requested "sky" data could not be loaded. Each entry names the file and what failed, e.g. "nprolohs (low cloud cover): download failed". The hourly fields from that file are null.'
+    ),
   source: z.string().describe('Data attribution'),
 });
 export type LocalForecastResponse = z.infer<typeof LocalForecastResponseSchema>;

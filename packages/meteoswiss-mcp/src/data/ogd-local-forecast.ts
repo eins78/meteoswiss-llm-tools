@@ -19,6 +19,7 @@ import { buildForecastIndexOffThread } from './ogd-forecast-pool.js';
 import { roundByUnit, roundNullable } from '../support/round-measurements.js';
 import { resolveForecastPoint } from './ogd-station-resolver.js';
 import { debugData } from '../support/logging.js';
+import { logSafe } from '../support/log-safe.js';
 import { OGD_COLLECTIONS, pointTypeFromId, SOURCE_ATTRIBUTION } from '../schemas/ogd-shared.js';
 import { weatherIconDescription, weatherIconUrl } from '../support/weather-icons.js';
 import type {
@@ -64,6 +65,26 @@ export function forecastParamsFor(isStation: boolean, detail: 'basic' | 'sky'): 
   return isStation
     ? [...DAILY_PARAMS, ...HOURLY_PARAMS.filter((p) => p !== 'jww003i0')]
     : HOURLY_PARAMS;
+}
+
+/** Human labels for the warning text of the optional "sky" files. */
+const OPTIONAL_PARAM_LABELS: Record<string, string> = {
+  nprolohs: 'low cloud cover',
+  npromths: 'medium cloud cover',
+  nprohihs: 'high cloud cover',
+  jww003i0: 'hourly weather symbol',
+};
+
+/**
+ * Which of the params a call fetches are OPTIONAL: a failed download (or a missing asset)
+ * degrades the answer to `null` fields plus a `warnings` entry instead of failing the call.
+ * Only the files "sky" adds are optional — `SKY_PARAMS` always, and `jww003i0` for a station.
+ * Every other file stays required; in particular `jww003i0` stays required for postal codes
+ * and mountain points because it makes the daily icon.
+ */
+export function optionalParamsFor(isStation: boolean, detail: 'basic' | 'sky'): readonly string[] {
+  if (detail !== 'sky') return [];
+  return isStation ? ['jww003i0', ...SKY_PARAMS] : SKY_PARAMS;
 }
 
 /** Maps each exposed hourly series to its OGD param code, for `groupUnifiedHourlyByDate`. */
@@ -470,29 +491,56 @@ export async function getLocalForecast(
   // cover files — and, for stations, `jww003i0` so they get the hourly symbol too (their
   // daily `weather` still comes from the official `jp2000d0` daily param).
   const paramsToFetch = forecastParamsFor(isStation, detail);
+  const optionalParams = new Set(optionalParamsFor(isStation, detail));
 
-  // Download all parameter CSVs concurrently
-  const paramEntries = await Promise.all(
+  // Download all parameter CSVs concurrently. A failure of an OPTIONAL file (only the ones
+  // "sky" adds — see `optionalParamsFor`) degrades to an empty map plus a warning so the
+  // call still succeeds; every other file fails the call unchanged.
+  const fetches = await Promise.all(
     paramsToFetch.map(async (param) => {
+      const label = OPTIONAL_PARAM_LABELS[param];
+      const optional = optionalParams.has(param);
+      let warning: string | null = null;
+
+      const emptyResult = (): [string, Map<string, number | null>, string | null] => [
+        param,
+        new Map<string, number | null>(),
+        warning,
+      ];
+
       const assetKey = findLatestAssetKey(item, param);
       if (!assetKey) {
         debugData('[ogd-forecast] No asset found for param: %s', param);
-        return [param, new Map<string, number | null>()] as const;
+        if (optional) {
+          warning = `${param} (${label}): not in this forecast run`;
+        }
+        return emptyResult();
       }
 
-      const url = resolveAssetUrl(item, assetKey);
-      const cacheKey = `forecasts/${item.id}/${assetKey}`;
-      debugData('[ogd-forecast] Downloading %s...', param);
-      const index = await getIndexedCsvData(url, cacheKey, 'forecast', (data, reload) =>
-        buildForecastIndexOffThread(data, param, reload)
-      );
-      const dateValues = lookupForecastSeries(index, pointIdStr, pointTypeStr);
-      debugData('[ogd-forecast] Got %d values for %s', dateValues.size, param);
-      return [param, dateValues] as const;
+      try {
+        const url = resolveAssetUrl(item, assetKey);
+        const cacheKey = `forecasts/${item.id}/${assetKey}`;
+        debugData('[ogd-forecast] Downloading %s...', param);
+        const index = await getIndexedCsvData(url, cacheKey, 'forecast', (data, reload) =>
+          buildForecastIndexOffThread(data, param, reload)
+        );
+        const dateValues = lookupForecastSeries(index, pointIdStr, pointTypeStr);
+        debugData('[ogd-forecast] Got %d values for %s', dateValues.size, param);
+        return [param, dateValues, warning] as const;
+      } catch (error) {
+        if (!optional) throw error;
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`[ogd-forecast] ${param} download failed: ${logSafe(message)}`);
+        warning = `${param} (${label}): download failed`;
+        return emptyResult();
+      }
     })
   );
 
-  const paramData = new Map(paramEntries);
+  // Warnings in the order of `paramsToFetch`, surfaced on the response only when non-empty.
+  const warnings = fetches.map(([, , warning]) => warning).filter((w): w is string => w !== null);
+
+  const paramData = new Map(fetches.map(([param, values]) => [param, values] as const));
 
   // Build daily forecast from the appropriate data source
   const forecast = isStation
@@ -508,6 +556,7 @@ export async function getLocalForecast(
     },
     generated,
     forecast,
+    ...(warnings.length > 0 ? { warnings } : {}),
     source: SOURCE_ATTRIBUTION,
   };
 }
