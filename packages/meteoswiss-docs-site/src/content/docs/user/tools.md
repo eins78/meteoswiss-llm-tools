@@ -84,6 +84,11 @@ Things worth knowing:
 - **Fog and low stratus need the cloud cover.** MeteoSwiss's symbol often shows a low cloud deck as "overcast". An overcast or partly
   sunny hour with low cloud of at least 80 % and medium and high cloud below 50 % counts as `fog_or_stratus`. If a cloud cover file
   cannot be loaded, this rule is off and `warnings` says so.
+- **Fog top (experimental).** Jura, Mittelland and Alpennordhang also carry `fog_top_m`: the top of a fog sea to the nearest 100 m.
+  It is found in 100 m bands with at least 5 points: the layer starts at the lowest band that is mostly `fog_or_stratus` (it must
+  start below 1000 m; the lowest corners of a region may stay clear), goes up as long as the bands stay so, and at least 60 % of
+  the points in the 300 m above must be sunny, partly sunny or a clear night (`sunny_above_fog_pct`). Otherwise it is `null`: no
+  fog layer low down, or cloud above it. The thresholds are a first guess and are being checked against observed fog mornings.
 - **Points, not area.** The forecast points are postal code centres, weather stations and mountain points: dense in towns and the
   lowlands, sparse in the mountains. A band with few points says little.
 - **Regions.** The seven regions are MeteoSwiss's own split of the country. MeteoSwiss does not publish them as Open Data: the server

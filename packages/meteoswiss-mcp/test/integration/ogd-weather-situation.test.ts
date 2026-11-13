@@ -59,6 +59,9 @@ describe('meteoswissWeatherSituation Tool', () => {
       dominant: 'fog_or_stratus',
     });
     expect(data.legend.fog_or_stratus).toMatch(/low cloud >= 80 %/);
+    // Too few fixture points per 100 m band for a fog top; the field is there, as null.
+    expect(mittelland.fog_top_m).toBeNull();
+    expect('fog_top_m' in data.regions.find((r: { id: string }) => r.id === 'wallis')).toBe(false);
   });
 
   it('returns a readable error for an hour the run does not cover', async () => {

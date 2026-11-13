@@ -33,6 +33,8 @@ import { pickRunAssets } from '../../src/data/weather-situation-run.js';
 
 const DEFAULT_BANDS = [500, 1000, 1500, 2000];
 
+const NO_FOG_TOP = { fog_top_m: null, sunny_above_fog_pct: null, fog_top_points: null };
+
 describe('getWeatherSituation (fixtures)', () => {
   it('counts the fog sea of 28.03 09:00 local per region and band', async () => {
     const result = await getWeatherSituation({ time: '2026-03-28T09:00', bands: DEFAULT_BANDS });
@@ -70,6 +72,9 @@ describe('getWeatherSituation (fixtures)', () => {
           dominant: 'fog_or_stratus',
         },
       ],
+      // The fixture has far fewer than 5 points per 100 m band: no fog top
+      // (the method is tested with synthetic points in weather-situation-fog.test.ts).
+      ...NO_FOG_TOP,
     });
     // Andermatt lies outside all seven fixture regions and is counted in the nearest one.
     expect(byId.get('alpennordhang')).toEqual({
@@ -88,9 +93,16 @@ describe('getWeatherSituation (fixtures)', () => {
         { band: '1000-1499', points: 2, pct: { sunny: 100 }, dominant: 'sunny' },
         { band: '>=2000', points: 1, pct: { fog_or_stratus: 100 }, dominant: 'fog_or_stratus' },
       ],
+      ...NO_FOG_TOP,
     });
     expect(byId.get('wallis')?.bands).toEqual([
       { band: '1500-1999', points: 2, pct: { sunny: 50, partly_sunny: 50 }, dominant: 'sunny' },
+    ]);
+    // Only the three regions north of the Alps carry the fog top fields.
+    expect(result.regions.filter((r) => 'fog_top_m' in r).map((r) => r.id)).toEqual([
+      'jura',
+      'mittelland',
+      'alpennordhang',
     ]);
     expect(byId.get('alpensuedseite')?.dominant).toBe('rain');
     expect(byId.get('nordundmittelbuenden')?.name).toBe('Nord- und Mittelbünden');
@@ -136,6 +148,7 @@ describe('getWeatherSituation (fixtures)', () => {
           { band: '<1000', points: 1, pct: { fog_or_stratus: 100 }, dominant: 'fog_or_stratus' },
           { band: '>=1000', points: 2, pct: { sunny: 100 }, dominant: 'sunny' },
         ],
+        ...NO_FOG_TOP,
       },
     ]);
   });

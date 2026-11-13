@@ -16,6 +16,7 @@ import { FORECAST_REGIONS, FORECAST_REGION_SOURCE } from './forecast-regions-sou
 import { checkBandEdges, countSituation, type SituationSample } from './weather-situation-count.js';
 import { inArea, parseAreaFilter, windowTimestamps } from './weather-situation-filters.js';
 import { hourNotInRun, loadRunFiles, type RunFiles } from './weather-situation-run.js';
+import { FOG_TOP_REGIONS, fogTop } from './weather-situation-fog.js';
 import {
   CATEGORY_LEGEND,
   WEATHER_CATEGORIES,
@@ -39,6 +40,20 @@ type HourReader = (key: string) => {
   mid: Float64Array | null;
   high: Float64Array | null;
 };
+
+/** The fog top fields of a northern region (experimental, see `weather-situation-fog.ts`). */
+function fogFields(samples: readonly SituationSample[]): {
+  fog_top_m: number | null;
+  sunny_above_fog_pct: number | null;
+  fog_top_points: number | null;
+} {
+  const fog = fogTop(samples);
+  return {
+    fog_top_m: fog?.topM ?? null,
+    sunny_above_fog_pct: fog?.clearAbovePct ?? null,
+    fog_top_points: fog?.points ?? null,
+  };
+}
 
 /** Build a reader for the counted hours of a run. */
 function hourReader(files: RunFiles, hours: readonly string[]): HourReader {
@@ -133,6 +148,7 @@ export async function getWeatherSituation(
     points: r.points,
     dominant: r.dominant,
     bands: r.bands,
+    ...(FOG_TOP_REGIONS.includes(r.id) ? fogFields(samples.filter((s) => s.region === r.id)) : {}),
   }));
   const legend: Partial<Record<WeatherCategory, string>> = {};
   for (const category of WEATHER_CATEGORIES) {

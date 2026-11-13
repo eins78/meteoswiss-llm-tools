@@ -39,6 +39,9 @@ describe('getWeatherSituation window', () => {
             dominant: 'sunny',
           },
         ],
+        fog_top_m: null,
+        sunny_above_fog_pct: null,
+        fog_top_points: null,
       },
     ]);
   });
