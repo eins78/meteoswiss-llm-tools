@@ -1214,7 +1214,7 @@
     },
     {
       "name": "meteoswissWeatherSituation",
-      "description": "Count the weather over Switzerland at one hour: MeteoSwiss's hourly weather symbol at all ~5800 forecast points (postal code centres, weather stations, mountain points), grouped into weather categories per MeteoSwiss forecast region and altitude band. Use it for area questions: where it is sunny, how high the fog or low stratus reaches, whether it is sunny above it, where it rains or snows. For the forecast at one place, use meteoswissLocalForecast.\n\nRegions are MeteoSwiss's seven forecast regions: jura, mittelland (Swiss Plateau), alpennordhang (northern Alps and Prealps), wallis (Valais), engadin, nordundmittelbuenden (northern and central Grisons), alpensuedseite (southern side of the Alps: Ticino and the southern valleys of Grisons). Points outside MeteoSwiss's seven regions are counted in the nearest one.\n\nNarrow the count with region, bbox (a WGS84 box), near (air distance around a place, at most 150 km) and min_altitude_m / max_altitude_m; given together, a point must pass all of them. With until, the count covers every hour of a window of up to 12 hours.\n\nCategories: sunny, clear_night, partly_sunny, cloudy, high_cloud, fog_or_stratus, rain, sleet, snow, thunder; the answer's \"legend\" gives the symbol codes of each. fog_or_stratus also counts an overcast or partly sunny hour under a low cloud deck (low cloud >= 80 %, medium and high cloud < 50 %): MeteoSwiss's symbol often shows such a deck as \"overcast\".\n\nReading the answer:\n- Times are local Europe/Zurich time with the UTC offset. The symbol of an hour describes the 3 hours that end at that time.\n- \"points\" counts forecast points, not area: they are dense in towns and the lowlands and sparse in the mountains. A band with few points says little.\n- Per band, \"pct\" holds the shares in whole percent (they add up to 100) and \"dominant\" the most frequent category.\n- jura, mittelland and alpennordhang also carry \"fog_top_m\" (experimental): the top of a fog sea to the nearest 100 m: the 100 m bands that are mostly fog_or_stratus, from the lowest such band (below 1000 m) up, with mostly sun in the 300 m above (\"sunny_above_fog_pct\"). null means no fog sea with sun above: no fog layer low down, or cloud above it. For a fog question, also read the bands yourself.\n- The forecast is updated hourly. Further ahead it may have symbols only every few hours; a time the run does not cover is an error that names the hours it has.\n\nSource: MeteoSwiss Open Data; the forecast regions come from the MeteoSwiss website (Source: MeteoSwiss).",
+      "description": "Count the weather over Switzerland at one hour: MeteoSwiss's hourly weather symbol at all ~5800 forecast points (postal code centres, weather stations, mountain points), grouped into weather categories per MeteoSwiss forecast region and altitude band. Use it for area questions: where it is sunny, how high the fog or low stratus reaches, whether it is sunny above it, where it rains or snows. For the forecast at one place, use meteoswissLocalForecast.\n\nRegions are MeteoSwiss's seven forecast regions: jura, mittelland (Swiss Plateau), alpennordhang (northern Alps and Prealps), wallis (Valais), engadin, nordundmittelbuenden (northern and central Grisons), alpensuedseite (southern side of the Alps: Ticino and the southern valleys of Grisons). Points outside MeteoSwiss's seven regions are counted in the nearest one.\n\nNarrow the count with region, bbox (a WGS84 box), near (air distance around a place, at most 150 km) and min_altitude_m / max_altitude_m; given together, a point must pass all of them. With until, the count covers every hour of a window of up to 12 hours.\n\nCategories: sunny, clear_night, partly_sunny, cloudy, high_cloud, fog_or_stratus, rain, sleet, snow, thunder; the answer's \"legend\" gives the symbol codes of each. fog_or_stratus also counts an overcast or partly sunny hour under a low cloud deck (low cloud >= 80 %, medium and high cloud < 50 %): MeteoSwiss's symbol often shows such a deck as \"overcast\".\n\nReading the answer:\n- Times are local Europe/Zurich time with the UTC offset. The symbol of an hour describes the 3 hours that end at that time.\n- \"points\" counts forecast points, not area: they are dense in towns and the lowlands and sparse in the mountains. A band with few points says little.\n- Per band, \"pct\" holds the shares in whole percent (they add up to 100) and \"dominant\" the most frequent category.\n- jura, mittelland and alpennordhang also carry \"fog_top_m\" (experimental): the top of a fog sea to the nearest 100 m: the 100 m bands that are mostly fog_or_stratus, from the lowest such band (below 1000 m) up, with mostly sun in the 300 m above (\"sunny_above_fog_pct\"). null means no fog sea with sun above: no fog layer low down, or cloud above it. For a fog question, also read the bands yourself.\n- With map: \"grid\", \"grid.rows\" is a coarse map, north at the top: one character per 5 km cell, the most frequent category there (\"grid.key\"). Use it to say where (west or east, which valleys) rather than how much.\n- The forecast is updated hourly. Further ahead it may have symbols only every few hours; a time the run does not cover is an error that names the hours it has.\n\nSource: MeteoSwiss Open Data; the forecast regions come from the MeteoSwiss website (Source: MeteoSwiss).",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1308,6 +1308,15 @@
               "minimum": 1,
               "maximum": 4800
             }
+          },
+          "map": {
+            "default": "none",
+            "description": "\"grid\" adds a coarse map: the most frequent category in each 5 km cell, as text rows (about 3 KB more for the whole country). Default \"none\".",
+            "type": "string",
+            "enum": [
+              "none",
+              "grid"
+            ]
           }
         },
         "required": [
@@ -1540,6 +1549,61 @@
               "type": "string"
             },
             "description": "What each category in this answer means, with its MeteoSwiss symbol codes"
+          },
+          "grid": {
+            "description": "Present only with map: \"grid\" and at least one point: a coarse map of the categories",
+            "type": "object",
+            "properties": {
+              "crs": {
+                "type": "string",
+                "const": "EPSG:2056",
+                "description": "Swiss LV95 coordinates, metres"
+              },
+              "cell_m": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Cell size in m (5000)"
+              },
+              "west": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "LV95 east coordinate of the west edge of the rows, m"
+              },
+              "north": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "LV95 north coordinate of the north edge of the first row, m"
+              },
+              "rows": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "One string per row of cells, north to south; character i is the cell i × cell_m east of \"west\". Each character is the most frequent category of the points in the cell (see \"key\")."
+              },
+              "key": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "Character → category; \".\" = no forecast point"
+              }
+            },
+            "required": [
+              "crs",
+              "cell_m",
+              "west",
+              "north",
+              "rows",
+              "key"
+            ],
+            "additionalProperties": false
           },
           "warnings": {
             "description": "Present only when something limits the answer: a cloud cover file could not be loaded (the cloud rule is then off and fog_or_stratus counts only the fog and stratus symbols), or the run has symbols for only some hours of the window.",

@@ -59,8 +59,15 @@ and altitude band. For area questions: where it is sunny, how high the fog reach
 | `near` | object | no | Only points within `radius_km` (air distance, at most 150 km) of `lat`/`lon` |
 | `min_altitude_m`, `max_altitude_m` | integer | no | Only points at or above / at or below this altitude |
 | `bands` | number[] | no | Altitude band edges in m, ascending; default `[500, 1000, 1500, 2000]`, `[]` for one band |
+| `map` | `"none"` \| `"grid"` | no | `"grid"` adds a coarse map (below); default `"none"` |
 
 `region`, `bbox`, `near` and the altitude limits combine: a point must pass all of them.
+
+**Map grid.** With `map: "grid"` the answer also has `grid`: the most frequent category in each 5 km cell of the Swiss LV95 grid
+(EPSG:2056), as text. `grid.rows` holds one string per row of cells, north to south; each character is one cell, west to east,
+starting at `grid.west` (LV95 east, m) below `grid.north`. `grid.key` names the characters, `.` is a cell without forecast points.
+The rows are cut to the cells with points; the whole country is about 70 × 45 characters. Draw it with your own symbols: MeteoSwiss's
+weather symbol graphics may not be reused.
 
 **Returns** the counted hours (`valid`), the forecast run, the number of points, and per region its points, its most frequent category
 and its altitude bands. Each band has its points, the share of each category in whole percent (`pct`, adding up to 100) and the most

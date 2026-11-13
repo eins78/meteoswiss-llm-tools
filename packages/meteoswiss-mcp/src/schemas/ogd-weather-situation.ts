@@ -24,6 +24,7 @@ Reading the answer:
 - "points" counts forecast points, not area: they are dense in towns and the lowlands and sparse in the mountains. A band with few points says little.
 - Per band, "pct" holds the shares in whole percent (they add up to 100) and "dominant" the most frequent category.
 - jura, mittelland and alpennordhang also carry "fog_top_m" (experimental): the top of a fog sea to the nearest 100 m: the 100 m bands that are mostly fog_or_stratus, from the lowest such band (below 1000 m) up, with mostly sun in the 300 m above ("sunny_above_fog_pct"). null means no fog sea with sun above: no fog layer low down, or cloud above it. For a fog question, also read the bands yourself.
+- With map: "grid", "grid.rows" is a coarse map, north at the top: one character per 5 km cell, the most frequent category there ("grid.key"). Use it to say where (west or east, which valleys) rather than how much.
 - The forecast is updated hourly. Further ahead it may have symbols only every few hours; a time the run does not cover is an error that names the hours it has.
 
 Source: MeteoSwiss Open Data; the forecast regions come from the MeteoSwiss website (Source: MeteoSwiss).`;
@@ -88,6 +89,13 @@ export const GetWeatherSituationParamsSchema = z.object({
     .default([500, 1000, 1500, 2000])
     .describe(
       'Altitude band edges in metres, ascending, e.g. [600, 800, 1000] for a fog question; default [500, 1000, 1500, 2000] gives the bands <500, 500-999, 1000-1499, 1500-1999, >=2000. [] gives one band.'
+    ),
+  map: z
+    .enum(['none', 'grid'])
+    .optional()
+    .default('none')
+    .describe(
+      '"grid" adds a coarse map: the most frequent category in each 5 km cell, as text rows (about 3 KB more for the whole country). Default "none".'
     ),
 });
 export type GetWeatherSituationParams = z.infer<typeof GetWeatherSituationParamsSchema>;
@@ -165,6 +173,28 @@ export const WeatherSituationResponseSchema = z.object({
   legend: z
     .partialRecord(CategorySchema, z.string())
     .describe('What each category in this answer means, with its MeteoSwiss symbol codes'),
+  grid: z
+    .object({
+      crs: z.literal('EPSG:2056').describe('Swiss LV95 coordinates, metres'),
+      cell_m: z.number().int().describe('Cell size in m (5000)'),
+      west: z.number().int().describe('LV95 east coordinate of the west edge of the rows, m'),
+      north: z
+        .number()
+        .int()
+        .describe('LV95 north coordinate of the north edge of the first row, m'),
+      rows: z
+        .array(z.string())
+        .describe(
+          'One string per row of cells, north to south; character i is the cell i × cell_m east of "west". Each character is the most frequent category of the points in the cell (see "key").'
+        ),
+      key: z
+        .record(z.string(), z.string())
+        .describe('Character → category; "." = no forecast point'),
+    })
+    .optional()
+    .describe(
+      'Present only with map: "grid" and at least one point: a coarse map of the categories'
+    ),
   warnings: z
     .array(z.string())
     .optional()

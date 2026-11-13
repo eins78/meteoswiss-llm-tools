@@ -150,3 +150,30 @@ describe('getWeatherSituation area filters', () => {
     ).rejects.toThrow(/above max_altitude_m/);
   });
 });
+
+describe('getWeatherSituation map grid', () => {
+  it('adds the 5 km raster of the filtered points only with map: "grid"', async () => {
+    const plain = await getWeatherSituation({ time: '2026-03-28T09:00', bands: [] });
+    expect('grid' in plain).toBe(false);
+
+    // Zürich 8001 and Hallau (fog), Einsiedeln (sunny), within 40 km of Zürich.
+    const result = await getWeatherSituation({
+      time: '2026-03-28T09:00',
+      near: { lat: 47.372289, lon: 8.542189, radius_km: 40 },
+      bands: [],
+      map: 'grid',
+    });
+    expect(result.grid).toMatchObject({
+      crs: 'EPSG:2056',
+      cell_m: 5000,
+      west: 2_675_000,
+      north: 1_285_000,
+      key: { S: 'sunny', F: 'fog_or_stratus', '.': 'no forecast point' },
+    });
+    const rows = result.grid?.rows ?? [];
+    expect(rows).toHaveLength(13);
+    expect(rows[0]).toBe('F....'); // Hallau, north
+    expect(rows[7]).toBe('.F...'); // Zürich
+    expect(rows[12]).toBe('....S'); // Einsiedeln, south-east
+  });
+});

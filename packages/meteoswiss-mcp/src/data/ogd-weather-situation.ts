@@ -17,6 +17,8 @@ import { checkBandEdges, countSituation, type SituationSample } from './weather-
 import { inArea, parseAreaFilter, windowTimestamps } from './weather-situation-filters.js';
 import { hourNotInRun, loadRunFiles, type RunFiles } from './weather-situation-run.js';
 import { FOG_TOP_REGIONS, fogTop } from './weather-situation-fog.js';
+import { buildGrid, type GridSample } from './weather-situation-grid.js';
+import { wgs84ToLv95 } from '../support/swiss-coordinates.js';
 import {
   CATEGORY_LEGEND,
   WEATHER_CATEGORIES,
@@ -77,14 +79,14 @@ function hourReader(files: RunFiles, hours: readonly string[]): HourReader {
  * Count the weather of the forecast points per region and altitude band, at one
  * hour or over a window.
  *
- * @param params - Tool input (schema defaults applied)
+ * @param params - Tool input (schema defaults applied; `map` may be left out, as "none")
  * @returns The tool's answer
  * @throws {RangeError} For a bad `time`, `until`, `bands` or area filter
  * @throws {Error} If the symbol file, the point list or the regions cannot be loaded,
  *   or the run has no symbol for any hour asked for
  */
 export async function getWeatherSituation(
-  params: GetWeatherSituationParams
+  params: Omit<GetWeatherSituationParams, 'map'> & { map?: GetWeatherSituationParams['map'] }
 ): Promise<WeatherSituationResponse> {
   const started = performance.now();
   checkBandEdges(params.bands);
@@ -110,6 +112,7 @@ export async function getWeatherSituation(
   const read = hourReader(files, hours);
 
   const samples: SituationSample[] = [];
+  const gridSamples: GridSample[] | null = params.map === 'grid' ? [] : null;
   const seen = new Set<string>();
   const present = new Set<WeatherCategory>();
   let counted = 0;
@@ -123,6 +126,7 @@ export async function getWeatherSituation(
     const { lat, lon } = point.coordinates;
     if (!inArea(area, { lat, lon, altitude: point.elevation })) continue;
     const { codes, low, mid, high } = read(key);
+    const lv95 = gridSamples ? wgs84ToLv95(lat, lon) : null;
     let any = false;
     for (let h = 0; h < hours.length; h++) {
       const category = categorizeHour(
@@ -138,6 +142,7 @@ export async function getWeatherSituation(
       any = true;
       present.add(category);
       samples.push({ point: key, region: region.region, altitude: point.elevation, category });
+      if (gridSamples && lv95) gridSamples.push({ ...lv95, category });
     }
     if (any) counted++;
   }
@@ -164,6 +169,7 @@ export async function getWeatherSituation(
   );
 
   const last = wanted.at(-1);
+  const grid = gridSamples ? buildGrid(gridSamples) : null;
   return {
     valid: {
       from: zurichIso(fromTs),
@@ -175,6 +181,7 @@ export async function getWeatherSituation(
     ...(missing > 0 ? { missing } : {}),
     regions,
     legend,
+    ...(grid ? { grid } : {}),
     ...(warnings.length > 0 ? { warnings } : {}),
     source: `${SOURCE_ATTRIBUTION}; forecast regions: ${FORECAST_REGION_SOURCE.attribution}`,
   };

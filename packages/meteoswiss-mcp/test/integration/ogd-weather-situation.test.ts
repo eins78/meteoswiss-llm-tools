@@ -32,6 +32,7 @@ describe('meteoswissWeatherSituation Tool', () => {
       'min_altitude_m',
       'max_altitude_m',
       'bands',
+      'map',
     ]);
     expect(tool?.inputSchema?.required).toEqual(['time']);
     expect(tool?.outputSchema).toBeDefined();
@@ -86,6 +87,19 @@ describe('meteoswissWeatherSituation Tool', () => {
       hours: 5,
     });
     expect(result.structuredContent.points).toBe(3);
+  });
+
+  it('adds the map grid on request', async () => {
+    const result = await client.callTool('meteoswissWeatherSituation', {
+      time: '2026-03-28T09:00',
+      map: 'grid',
+    });
+    expect(result.isError).toBeFalsy();
+    const grid = result.structuredContent.grid;
+    expect(grid.crs).toBe('EPSG:2056');
+    expect(grid.cell_m).toBe(5000);
+    expect(new Set(grid.rows.map((r: string) => r.length)).size).toBe(1);
+    expect(grid.rows.join('')).toMatch(/^[SNPCHFRLWT.]+$/);
   });
 
   it('rejects a radius over 150 km', async () => {
