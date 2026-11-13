@@ -53,7 +53,7 @@ describe('fogTop', () => {
     expect(fogTop(fogSea('rain'))).toBeNull();
   });
 
-  it('starts the layer at the lowest foggy band, so clear low corners do not hide the sea', () => {
+  it('starts the layer at the lowest foggy band, even with mostly clear bands below it', () => {
     // Like the Plateau forecast for 14.11.2026 10:00: 300-499 m mostly clear, 500-899 m fog.
     const samples = [
       ...band(300, 10, 2),
