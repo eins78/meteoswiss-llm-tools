@@ -109,10 +109,11 @@ async function captureContext(): Promise<GroundTruthContext> {
             .filter((s) => s.abbr !== "" && s.name !== "")
         : [];
 
+    // One capture time for every question, so all of them name the same day 1.
+    const capturedAt = new Date();
     const situation = new Map<string, SituationCapture>();
-    const now = new Date();
     for (const key of Object.keys(SITUATION_CALLS)) {
-      const { date, weekday, args } = situationArgs(key, now);
+      const { date, weekday, args } = situationArgs(key, capturedAt);
       const result = await client.callTool({
         name: "meteoswissWeatherSituation",
         arguments: args,
@@ -129,7 +130,7 @@ async function captureContext(): Promise<GroundTruthContext> {
     }
 
     return {
-      capturedAt: new Date(),
+      capturedAt,
       current: currentFromCsv(currentCsv),
       stationNames: stationNamesFromCsv(stationsCsv),
       grStations,

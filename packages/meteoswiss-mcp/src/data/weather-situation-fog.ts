@@ -17,13 +17,16 @@
  *    a fog sea.
  *
  * Why step 2 does not demand that the lowest band itself is foggy: the first
- * design did, and on a forecast fog sea over the Swiss Plateau (run of
- * 2026-11-11 11 UTC, valid 2026-11-14 10:00) it found none. The 300-499 m bands
- * there were 17 % and 38 % fog (the lowest corners of the region stay clear),
- * 500-899 m were 57-81 %, and 77 % of the points above were clear: a fog sea
- * with its top at 900 m. Requiring the lowest band again is a change of
- * `maxBaseM` to the lowest band's altitude; every threshold is a constant here
- * so a replay against observed fog mornings can tune it.
+ * design did, and on the run of 2026-11-11 11 UTC (valid 2026-11-14 10:00) it
+ * found no fog top over the Swiss Plateau. There the 300-499 m bands were 17 %
+ * and 38 % fog, 500-899 m were 57-81 %, and 77 % of the points in the 300 m
+ * above were clear; this rule reads that as a fog sea with its top at 900 m.
+ * Below such a base the lowlands can be mostly clear (in that run, 48-65 % of
+ * the points below the base, half or more of the region), which may be fog on
+ * the higher ground rather than a fog sea; the first design returns null there.
+ * Going back to it is a one-line change in the walk: stop unless the layer
+ * starts at the lowest counting band. Every threshold is a constant here so a
+ * replay against observed fog mornings can tune it.
  */
 
 import type { WeatherCategory } from '../support/weather-categories.js';
