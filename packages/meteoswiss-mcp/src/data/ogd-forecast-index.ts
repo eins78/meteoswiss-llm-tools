@@ -140,23 +140,55 @@ export function timestampId(index: ForecastIndex, ts: string): number {
   return index.timestampTable.indexOf(ts);
 }
 
+/** Wanted timestamps of one index, for {@link forecastValuesAt}. */
+export type TimestampSlots = {
+  /** Slot of each timestamp id (position in the wanted list), -1 if not wanted */
+  slotOf: Int32Array;
+  /** Number of wanted timestamps */
+  count: number;
+};
+
 /**
- * One point's value at one timestamp, without building its whole series.
- * Duplicate dates resolve last-write-wins, like {@link lookupForecastSeries}.
+ * Prepare a lookup of several timestamps in one index.
+ *
+ * @param index - Index from {@link buildForecastIndex}
+ * @param timestamps - Wanted `Date` values (`YYYYMMDDhhmm`, UTC), in output order
+ */
+export function timestampSlots(
+  index: ForecastIndex,
+  timestamps: readonly string[]
+): TimestampSlots {
+  const slotOf = new Int32Array(index.timestampTable.length).fill(-1);
+  timestamps.forEach((ts, slot) => {
+    const id = timestampId(index, ts);
+    if (id >= 0) slotOf[id] = slot;
+  });
+  return { slotOf, count: timestamps.length };
+}
+
+/**
+ * One point's values at several timestamps, in one pass over its series rather
+ * than building the whole `Date → value` map. Duplicate dates resolve
+ * last-write-wins, like {@link lookupForecastSeries}.
  *
  * @param index - Index from {@link buildForecastIndex}
  * @param key - `point_id:point_type_id`, e.g. `"800100:2"`
- * @param tsId - From {@link timestampId}
- * @returns The value; NaN if missing, or if the point or timestamp is not in the file
+ * @param slots - From {@link timestampSlots} for the same index
+ * @returns One value per wanted timestamp; NaN if missing, or if the point or
+ *   timestamp is not in the file
  */
-export function forecastValueAt(index: ForecastIndex, key: string, tsId: number): number {
-  if (tsId < 0) return NaN;
+export function forecastValuesAt(
+  index: ForecastIndex,
+  key: string,
+  slots: TimestampSlots
+): Float64Array {
+  const out = new Float64Array(slots.count).fill(NaN);
   const series = index.points.get(key);
-  if (series === undefined) return NaN;
-  let value = NaN;
+  if (series === undefined) return out;
   const end = series.offset + series.length;
   for (let i = series.offset; i < end; i++) {
-    if (index.timestamps[i] === tsId) value = index.values[i] ?? NaN;
+    const slot = slots.slotOf[index.timestamps[i] ?? 0] ?? -1;
+    if (slot >= 0) out[slot] = index.values[i] ?? NaN;
   }
-  return value;
+  return out;
 }

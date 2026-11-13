@@ -47,14 +47,22 @@ export function zurichPartsOfDate(instant: Date): ZurichParts {
  * @param ts - UTC timestamp `YYYYMMDDhhmm`
  */
 export function zurichParts(ts: string): ZurichParts {
-  const utcMs = Date.UTC(
+  return zurichPartsOfDate(new Date(ogdTimestampToMs(ts)));
+}
+
+/**
+ * A UTC OGD timestamp as milliseconds since the epoch.
+ *
+ * @param ts - UTC timestamp `YYYYMMDDhhmm`
+ */
+export function ogdTimestampToMs(ts: string): number {
+  return Date.UTC(
     Number(ts.slice(0, 4)),
     Number(ts.slice(4, 6)) - 1,
     Number(ts.slice(6, 8)),
     Number(ts.slice(8, 10)),
     Number(ts.slice(10, 12))
   );
-  return zurichPartsOfDate(new Date(utcMs));
 }
 
 /**
@@ -67,8 +75,12 @@ export function zurichIso(ts: string): string {
   return `${date}T${time}${offset}`;
 }
 
-/** Format an instant as a UTC OGD timestamp `YYYYMMDDhhmm`. */
-function toOgdTimestamp(utcMs: number): string {
+/**
+ * Format an instant as a UTC OGD timestamp `YYYYMMDDhhmm`.
+ *
+ * @param utcMs - Milliseconds since the epoch
+ */
+export function toOgdTimestamp(utcMs: number): string {
   const d = new Date(utcMs);
   const pad = (n: number): string => String(n).padStart(2, '0');
   return (

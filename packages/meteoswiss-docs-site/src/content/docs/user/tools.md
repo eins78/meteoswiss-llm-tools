@@ -53,12 +53,19 @@ and altitude band. For area questions: where it is sunny, how high the fog reach
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `time` | string | yes | The hour, in local Swiss time: `"2026-11-14T10:00"`. A time with an offset (as `meteoswissLocalForecast` returns it) works too |
+| `until` | string | no | Last hour of a window (included), at most 12 h after `time`; every hour in between is counted |
 | `region` | string | no | One of the seven region ids below; default all seven |
+| `bbox` | number[4] | no | Only points in a WGS84 box `[west, south, east, north]` |
+| `near` | object | no | Only points within `radius_km` (air distance, at most 150 km) of `lat`/`lon` |
+| `min_altitude_m`, `max_altitude_m` | integer | no | Only points at or above / at or below this altitude |
 | `bands` | number[] | no | Altitude band edges in m, ascending; default `[500, 1000, 1500, 2000]`, `[]` for one band |
 
-**Returns** the counted hour (`valid`), the forecast run, the number of points, and per region its points, its most frequent category
+`region`, `bbox`, `near` and the altitude limits combine: a point must pass all of them.
+
+**Returns** the counted hours (`valid`), the forecast run, the number of points, and per region its points, its most frequent category
 and its altitude bands. Each band has its points, the share of each category in whole percent (`pct`, adding up to 100) and the most
-frequent category. A `legend` explains the categories in the answer. The answer is about 3 KB.
+frequent category. Over a window the points stay points, and the shares are shares of point-hours. A `legend` explains the categories
+in the answer. The answer is about 3–4 KB.
 
 | Region id | MeteoSwiss name |
 |-----------|-----------------|

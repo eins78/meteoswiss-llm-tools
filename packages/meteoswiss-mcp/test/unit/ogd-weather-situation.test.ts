@@ -28,7 +28,8 @@ vi.mock('../../src/data/ogd-data-store.js', async (importOriginal) => {
   };
 });
 
-import { getWeatherSituation, pickRunAssets } from '../../src/data/ogd-weather-situation.js';
+import { getWeatherSituation } from '../../src/data/ogd-weather-situation.js';
+import { pickRunAssets } from '../../src/data/weather-situation-run.js';
 
 const DEFAULT_BANDS = [500, 1000, 1500, 2000];
 

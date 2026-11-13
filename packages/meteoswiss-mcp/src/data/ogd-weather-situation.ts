@@ -1,23 +1,21 @@
 /**
  * Data layer for the meteoswissWeatherSituation tool: the weather over all
- * ~5800 forecast points at one hour, counted per MeteoSwiss forecast region
- * and altitude band.
+ * ~5800 forecast points at one hour or over a window of up to 12 hours,
+ * counted per MeteoSwiss forecast region and altitude band.
  *
  * It reads the same files as `meteoswissLocalForecast` with `detail: "sky"`
- * (the hourly symbol `jww003i0` and the cloud cover `nprolohs`, `npromths`,
- * `nprohihs`) through the same caches, so it adds no download of its own.
- * The symbol file is required; a cloud cover file that fails only turns the
- * cloud rule off, with a warning.
+ * (see `weather-situation-run.ts`) through the same caches, so it adds no
+ * download of its own.
  */
 
-import { getLatestItem, resolveAssetUrl } from './ogd-stac-client.js';
-import { getIndexedCsvData } from './ogd-data-store.js';
-import { forecastValueAt, timestampId, type ForecastIndex } from './ogd-forecast-index.js';
-import { buildForecastIndexOffThread } from './ogd-forecast-pool.js';
+import { getLatestItem } from './ogd-stac-client.js';
+import { forecastValuesAt, timestampId, timestampSlots } from './ogd-forecast-index.js';
 import { getForecastPoints } from './ogd-station-resolver.js';
 import { getPointRegions, pointKey } from './forecast-point-regions.js';
 import { FORECAST_REGIONS, FORECAST_REGION_SOURCE } from './forecast-regions-source.js';
 import { checkBandEdges, countSituation, type SituationSample } from './weather-situation-count.js';
+import { inArea, parseAreaFilter, windowTimestamps } from './weather-situation-filters.js';
+import { hourNotInRun, loadRunFiles, type RunFiles } from './weather-situation-run.js';
 import {
   CATEGORY_LEGEND,
   WEATHER_CATEGORIES,
@@ -26,174 +24,80 @@ import {
 } from '../support/weather-categories.js';
 import { localHourToUtcTs, zurichIso } from '../support/zurich-time.js';
 import { debugData } from '../support/logging.js';
-import { logSafe } from '../support/log-safe.js';
-import { OGD_COLLECTIONS, SOURCE_ATTRIBUTION, type StacItem } from '../schemas/ogd-shared.js';
+import { OGD_COLLECTIONS, SOURCE_ATTRIBUTION } from '../schemas/ogd-shared.js';
 import type {
   GetWeatherSituationParams,
   WeatherSituationResponse,
 } from '../schemas/ogd-weather-situation.js';
 
-const SYMBOL_PARAM = 'jww003i0';
-
-const CLOUD_PARAMS = [
-  { param: 'nprolohs', label: 'low cloud cover' },
-  { param: 'npromths', label: 'medium cloud cover' },
-  { param: 'nprohihs', label: 'high cloud cover' },
-] as const;
-
 const REGION_NAMES = new Map(FORECAST_REGIONS.map((r) => [r.id, r.names.de] as const));
 
-/** The asset keys of one forecast run. */
-export type RunAssets = {
-  /** Run time, UTC `YYYYMMDDhhmm` */
-  run: string;
-  symbolKey: string;
-  /** Per {@link CLOUD_PARAMS} entry; null if the item has no such file */
-  cloudKeys: (string | null)[];
+/** Reads one point's symbol and cloud cover at each counted hour. */
+type HourReader = (key: string) => {
+  codes: Float64Array;
+  low: Float64Array | null;
+  mid: Float64Array | null;
+  high: Float64Array | null;
 };
 
-/** Run timestamp → asset key of one parameter (keys like `vnut12.lssw.202603262300.jww003i0.csv`). */
-function runsOf(item: StacItem, param: string): Map<string, string> {
-  const out = new Map<string, string>();
-  const suffix = `.${param}.csv`;
-  for (const key of Object.keys(item.assets)) {
-    if (!key.endsWith(suffix)) continue;
-    const run = /\.(\d{12})\.[^.]+\.csv$/.exec(key)?.[1];
-    if (run !== undefined) out.set(run, key);
-  }
-  return out;
-}
-
-/** The asset key of a parameter's newest run. */
-function newestKey(runs: Map<string, string>): string | null {
-  const newest = [...runs.keys()].sort().at(-1);
-  return newest === undefined ? null : (runs.get(newest) ?? null);
-}
-
-/**
- * Pick the files to read: the newest run whose symbol file and all three cloud
- * files are uploaded, so symbol and cloud cover belong together. While a run is
- * still uploading, that is the run before it. If no run has all four, the newest
- * symbol file and each cloud file's newest run.
- *
- * @param item - Latest STAC item of the local forecast collection
- * @throws {Error} If the item holds no symbol file
- */
-export function pickRunAssets(item: StacItem): RunAssets {
-  const symbolRuns = runsOf(item, SYMBOL_PARAM);
-  const cloudRuns = CLOUD_PARAMS.map(({ param }) => runsOf(item, param));
-  const newestFirst = [...symbolRuns.keys()].sort().reverse();
-  const run = newestFirst.find((r) => cloudRuns.every((m) => m.has(r))) ?? newestFirst[0];
-  const symbolKey = run === undefined ? undefined : symbolRuns.get(run);
-  if (run === undefined || symbolKey === undefined) {
-    throw new Error(`No weather symbol file (${SYMBOL_PARAM}) in forecast item ${item.id}`);
-  }
-  return {
-    run,
-    symbolKey,
-    cloudKeys: cloudRuns.map((m) => m.get(run) ?? newestKey(m)),
+/** Build a reader for the counted hours of a run. */
+function hourReader(files: RunFiles, hours: readonly string[]): HourReader {
+  const symbolSlots = timestampSlots(files.symbols, hours);
+  const clouds = files.clouds.map((index) =>
+    index ? { index, slots: timestampSlots(index, hours) } : null
+  );
+  const cloud = (i: number, key: string): Float64Array | null => {
+    const c = clouds[i];
+    return c ? forecastValuesAt(c.index, key, c.slots) : null;
   };
-}
-
-/** Load one parameter file's index through the shared forecast caches. */
-async function loadIndex(item: StacItem, assetKey: string, param: string): Promise<ForecastIndex> {
-  return getIndexedCsvData(
-    resolveAssetUrl(item, assetKey),
-    `forecasts/${item.id}/${assetKey}`,
-    'forecast',
-    (data, reload) => buildForecastIndexOffThread(data, param, reload)
-  );
-}
-
-/** Load the cloud cover files; a failure becomes a warning, not an error. */
-async function loadCloudIndexes(
-  item: StacItem,
-  keys: readonly (string | null)[]
-): Promise<{ indexes: (ForecastIndex | null)[]; warnings: string[] }> {
-  const results = await Promise.all(
-    CLOUD_PARAMS.map(async ({ param, label }, i) => {
-      const key = keys[i] ?? null;
-      if (key === null)
-        return { index: null, warning: `${param} (${label}): not in this forecast run` };
-      try {
-        return { index: await loadIndex(item, key, param), warning: null };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        console.error(`[ogd-situation] ${param} download failed: ${logSafe(message)}`);
-        return { index: null, warning: `${param} (${label}): download failed` };
-      }
-    })
-  );
-  const warnings = results.map((r) => r.warning).filter((w): w is string => w !== null);
-  if (warnings.length > 0) {
-    warnings.push(
-      'Without the cloud cover the cloud rule is off: fog_or_stratus counts only the fog and stratus symbols.'
-    );
-  }
-  return { indexes: results.map((r) => r.index), warnings };
+  return (key) => ({
+    codes: forecastValuesAt(files.symbols, key, symbolSlots),
+    low: cloud(0, key),
+    mid: cloud(1, key),
+    high: cloud(2, key),
+  });
 }
 
 /**
- * The error for an hour the run has no symbol for: outside the run, or between
- * the 3-hourly steps further ahead.
- */
-function hourNotInRun(index: ForecastIndex, ts: string, time: string, run: string): Error {
-  const all = [...index.timestampTable].sort();
-  const first = all[0];
-  const last = all.at(-1);
-  if (first === undefined || last === undefined) {
-    return new Error(`The forecast run of ${zurichIso(run)} has no weather symbols`);
-  }
-  if (ts < first || ts > last) {
-    return new Error(
-      `${time} is outside the forecast run of ${zurichIso(run)}: it covers ${zurichIso(first)} to ${zurichIso(last)}`
-    );
-  }
-  const before = all.filter((t) => t < ts).at(-1) ?? first;
-  const after = all.find((t) => t > ts) ?? last;
-  return new Error(
-    `The forecast run of ${zurichIso(run)} has no symbol for ${time}: further ahead it has values every few hours; nearest ${zurichIso(before)} and ${zurichIso(after)}`
-  );
-}
-
-/**
- * Count the weather of all forecast points at one hour per region and altitude band.
+ * Count the weather of the forecast points per region and altitude band, at one
+ * hour or over a window.
  *
  * @param params - Tool input (schema defaults applied)
  * @returns The tool's answer
- * @throws {RangeError} For a bad `time` or `bands`
+ * @throws {RangeError} For a bad `time`, `until`, `bands` or area filter
  * @throws {Error} If the symbol file, the point list or the regions cannot be loaded,
- *   or the run has no symbol for the hour
+ *   or the run has no symbol for any hour asked for
  */
 export async function getWeatherSituation(
   params: GetWeatherSituationParams
 ): Promise<WeatherSituationResponse> {
   const started = performance.now();
   checkBandEdges(params.bands);
-  const ts = localHourToUtcTs(params.time);
+  const area = parseAreaFilter(params);
+  const fromTs = localHourToUtcTs(params.time);
+  const untilTs = params.until === undefined ? undefined : localHourToUtcTs(params.until);
+  const wanted = windowTimestamps(fromTs, untilTs);
 
   const [item, points, pointRegions] = await Promise.all([
     getLatestItem(OGD_COLLECTIONS.LOCAL_FORECASTING),
     getForecastPoints(),
     getPointRegions(),
   ]);
-  const assets = pickRunAssets(item);
-  const [symbols, clouds] = await Promise.all([
-    loadIndex(item, assets.symbolKey, SYMBOL_PARAM),
-    loadCloudIndexes(item, assets.cloudKeys),
-  ]);
-
-  const tsId = timestampId(symbols, ts);
-  if (tsId < 0) throw hourNotInRun(symbols, ts, params.time, assets.run);
-  const cloudTs = clouds.indexes.map((index) => (index ? timestampId(index, ts) : -1));
-  const cloudAt = (i: number, key: string): number => {
-    const index = clouds.indexes[i];
-    return index ? forecastValueAt(index, key, cloudTs[i] ?? -1) : NaN;
-  };
+  const files = await loadRunFiles(item);
+  const hours = wanted.filter((ts) => timestampId(files.symbols, ts) >= 0);
+  if (hours.length === 0) throw hourNotInRun(files.symbols, fromTs, params.time, files.assets.run);
+  const warnings = [...files.warnings];
+  if (hours.length < wanted.length) {
+    warnings.push(
+      `The forecast run has symbols for ${hours.length} of the ${wanted.length} hours asked for (further ahead it has values only every few hours); the counts use those ${hours.length}.`
+    );
+  }
+  const read = hourReader(files, hours);
 
   const samples: SituationSample[] = [];
   const seen = new Set<string>();
   const present = new Set<WeatherCategory>();
+  let counted = 0;
   let missing = 0;
   for (const point of points) {
     const key = pointKey(point.point_id, point.point_type_id);
@@ -201,18 +105,26 @@ export async function getWeatherSituation(
     seen.add(key);
     const region = pointRegions.get(key);
     if (!region || (params.region !== undefined && region.region !== params.region)) continue;
-    const category = categorizeHour(
-      forecastValueAt(symbols, key, tsId),
-      cloudAt(0, key),
-      cloudAt(1, key),
-      cloudAt(2, key)
-    );
-    if (category === null) {
-      missing++;
-      continue;
+    const { lat, lon } = point.coordinates;
+    if (!inArea(area, { lat, lon, altitude: point.elevation })) continue;
+    const { codes, low, mid, high } = read(key);
+    let any = false;
+    for (let h = 0; h < hours.length; h++) {
+      const category = categorizeHour(
+        codes[h] ?? NaN,
+        low?.[h] ?? NaN,
+        mid?.[h] ?? NaN,
+        high?.[h] ?? NaN
+      );
+      if (category === null) {
+        missing++;
+        continue;
+      }
+      any = true;
+      present.add(category);
+      samples.push({ point: key, region: region.region, altitude: point.elevation, category });
     }
-    present.add(category);
-    samples.push({ point: key, region: region.region, altitude: point.elevation, category });
+    if (any) counted++;
   }
 
   const regions = countSituation(samples, params.bands).map((r) => ({
@@ -227,21 +139,27 @@ export async function getWeatherSituation(
     if (present.has(category)) legend[category] = CATEGORY_LEGEND[category];
   }
   debugData(
-    '[ogd-situation] %s: %d points, %d missing, %d ms',
-    ts,
-    samples.length,
+    '[ogd-situation] %s +%dh: %d points, %d point-hours missing, %d ms',
+    fromTs,
+    hours.length,
+    counted,
     missing,
     Math.round(performance.now() - started)
   );
 
+  const last = wanted.at(-1);
   return {
-    valid: { from: zurichIso(ts), hours: 1 },
-    run: zurichIso(assets.run),
-    points: samples.length,
+    valid: {
+      from: zurichIso(fromTs),
+      ...(untilTs !== undefined && last !== undefined ? { until: zurichIso(last) } : {}),
+      hours: hours.length,
+    },
+    run: zurichIso(files.assets.run),
+    points: counted,
     ...(missing > 0 ? { missing } : {}),
     regions,
     legend,
-    ...(clouds.warnings.length > 0 ? { warnings: clouds.warnings } : {}),
+    ...(warnings.length > 0 ? { warnings } : {}),
     source: `${SOURCE_ATTRIBUTION}; forecast regions: ${FORECAST_REGION_SOURCE.attribution}`,
   };
 }

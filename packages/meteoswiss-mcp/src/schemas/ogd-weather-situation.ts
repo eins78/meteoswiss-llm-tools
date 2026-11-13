@@ -15,6 +15,8 @@ export const WEATHER_SITUATION_DESCRIPTION = `Count the weather over Switzerland
 
 Regions are MeteoSwiss's seven forecast regions: jura, mittelland (Swiss Plateau), alpennordhang (northern Alps and Prealps), wallis (Valais), engadin, nordundmittelbuenden (northern and central Grisons), alpensuedseite (southern side of the Alps: Ticino and the southern valleys of Grisons). Points outside MeteoSwiss's seven regions are counted in the nearest one.
 
+Narrow the count with region, bbox (a WGS84 box), near (air distance around a place, at most 150 km) and min_altitude_m / max_altitude_m; given together, a point must pass all of them. With until, the count covers every hour of a window of up to 12 hours.
+
 Categories: sunny, clear_night, partly_sunny, cloudy, high_cloud, fog_or_stratus, rain, sleet, snow, thunder; the answer's "legend" gives the symbol codes of each. fog_or_stratus also counts an overcast or partly sunny hour under a low cloud deck (low cloud >= 80 %, medium and high cloud < 50 %): MeteoSwiss's symbol often shows such a deck as "overcast".
 
 Reading the answer:
@@ -33,12 +35,51 @@ export const GetWeatherSituationParamsSchema = z.object({
     .describe(
       'The hour to count, in local Swiss time: "2026-11-14T10:00" (minutes are ignored). A time with a UTC offset, e.g. "2026-11-14T10:00:00+01:00" from meteoswissLocalForecast, is also accepted.'
     ),
+  until: z
+    .string()
+    .min(1)
+    .max(40)
+    .optional()
+    .describe(
+      'Last hour of a window, included, at most 12 h after time; same format as time. Every hour from time to until is counted: "points" stay points, the shares in "pct" are then shares of point-hours (each point once per hour).'
+    ),
   region: z
     .enum(REGION_IDS)
     .optional()
     .describe(
       'Only this MeteoSwiss forecast region: jura, mittelland (Swiss Plateau), alpennordhang (northern Alps and Prealps), wallis (Valais), engadin, nordundmittelbuenden (northern and central Grisons), alpensuedseite (southern side of the Alps, Ticino). Default: all seven.'
     ),
+  bbox: z
+    .array(z.number())
+    .length(4)
+    .optional()
+    .describe(
+      'Only points inside this WGS84 box: [west, south, east, north] in degrees, e.g. [7.0, 46.5, 8.5, 47.5].'
+    ),
+  near: z
+    .object({
+      lat: z.number().min(45).max(48.5).describe('Latitude, WGS84 degrees'),
+      lon: z.number().min(5).max(11.5).describe('Longitude, WGS84 degrees'),
+      radius_km: z.number().positive().max(150).describe('Radius in km, air distance, at most 150'),
+    })
+    .optional()
+    .describe(
+      'Only points within radius_km of a place, e.g. {"lat": 47.37, "lon": 8.54, "radius_km": 40} around Zurich. Air distance, not travel time.'
+    ),
+  min_altitude_m: z
+    .number()
+    .int()
+    .min(0)
+    .max(5000)
+    .optional()
+    .describe('Only points at or above this altitude, in m above sea level'),
+  max_altitude_m: z
+    .number()
+    .int()
+    .min(0)
+    .max(5000)
+    .optional()
+    .describe('Only points at or below this altitude, in m above sea level'),
   bands: z
     .array(z.number().int().min(1).max(4800))
     .max(10)
@@ -53,7 +94,7 @@ export type GetWeatherSituationParams = z.infer<typeof GetWeatherSituationParams
 const PctSchema = z
   .partialRecord(CategorySchema, z.number().int())
   .describe(
-    'Share of the points per category, in whole percent, largest first; they add up to 100. Categories at 0 % are left out.'
+    'Share of the points (over a window: of the point-hours) per category, in whole percent, largest first; they add up to 100. Categories at 0 % are left out.'
   );
 
 export const SituationBandSchema = z.object({
@@ -76,17 +117,23 @@ export const WeatherSituationResponseSchema = z.object({
     from: z
       .string()
       .describe(
-        'Start of the counted hour in local Europe/Zurich time with offset, e.g. "2026-11-14T10:00:00+01:00"'
+        'First counted hour in local Europe/Zurich time with offset, e.g. "2026-11-14T10:00:00+01:00"'
       ),
+    until: z
+      .string()
+      .optional()
+      .describe('Last hour of the window, same format; present only when until was given'),
     hours: z.number().int().describe('Number of hours counted'),
   }),
   run: z.string().describe('The forecast run the counts come from, local time with offset'),
-  points: z.number().int().describe('Forecast points counted'),
+  points: z.number().int().describe('Forecast points counted (after the filters)'),
   missing: z
     .number()
     .int()
     .optional()
-    .describe('Points left out because the run has no weather symbol for them at this hour'),
+    .describe(
+      'Point-hours left out because the run has no weather symbol for them; present only when more than 0'
+    ),
   regions: z
     .array(SituationRegionSchema)
     .describe('MeteoSwiss forecast regions, west to east and north to south'),
@@ -97,7 +144,7 @@ export const WeatherSituationResponseSchema = z.object({
     .array(z.string())
     .optional()
     .describe(
-      'Present only when a cloud cover file could not be loaded; the cloud rule is then off and fog_or_stratus counts only the fog and stratus symbols.'
+      'Present only when something limits the answer: a cloud cover file could not be loaded (the cloud rule is then off and fog_or_stratus counts only the fog and stratus symbols), or the run has symbols for only some hours of the window.'
     ),
   source: z.string().describe('Data attribution'),
 });

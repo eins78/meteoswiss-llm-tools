@@ -23,7 +23,16 @@ describe('meteoswissWeatherSituation Tool', () => {
     const tools = await client.listTools();
     const tool = tools.find((t) => t.name === 'meteoswissWeatherSituation');
     expect(tool).toBeDefined();
-    expect(Object.keys(tool?.inputSchema?.properties ?? {})).toEqual(['time', 'region', 'bands']);
+    expect(Object.keys(tool?.inputSchema?.properties ?? {})).toEqual([
+      'time',
+      'until',
+      'region',
+      'bbox',
+      'near',
+      'min_altitude_m',
+      'max_altitude_m',
+      'bands',
+    ]);
     expect(tool?.inputSchema?.required).toEqual(['time']);
     expect(tool?.outputSchema).toBeDefined();
     expect(tool?.description).toContain(
@@ -58,6 +67,30 @@ describe('meteoswissWeatherSituation Tool', () => {
     });
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toMatch(/outside the forecast run/);
+  });
+
+  it('takes a window and area filters', async () => {
+    const result = await client.callTool('meteoswissWeatherSituation', {
+      time: '2026-03-28T08:00',
+      until: '2026-03-28T12:00',
+      near: { lat: 47.372289, lon: 8.542189, radius_km: 40 },
+      min_altitude_m: 300,
+    });
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent.valid).toEqual({
+      from: '2026-03-28T08:00:00+01:00',
+      until: '2026-03-28T12:00:00+01:00',
+      hours: 5,
+    });
+    expect(result.structuredContent.points).toBe(3);
+  });
+
+  it('rejects a radius over 150 km', async () => {
+    const result = await client.callTool('meteoswissWeatherSituation', {
+      time: '2026-03-28T09:00',
+      near: { lat: 47.37, lon: 8.54, radius_km: 200 },
+    });
+    expect(result.isError).toBe(true);
   });
 
   it('rejects an unknown region id', async () => {
