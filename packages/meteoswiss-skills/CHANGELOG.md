@@ -1,5 +1,11 @@
 # meteoswiss-skills
 
+## 1.1.1 - 2026-11-13
+
+### Patch Changes
+
+- f3aac54: The skill no longer calls the weather pictogram `jww003i0` 3-hourly: it has one value per hour. It also lists the cloud cover parameters `nprolohs`, `npromths` and `nprohihs`.
+
 ## 1.1.0 - 2026-07-18
 
 ### Minor Changes

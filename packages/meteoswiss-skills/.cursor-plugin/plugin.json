@@ -2,7 +2,7 @@
   "name": "meteoswiss-skills",
   "displayName": "MeteoSwiss Skills",
   "description": "MeteoSwiss Open Data skill — teaches AI agents to access Swiss weather data directly via HTTP",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "author": {
     "name": "Max Albrecht",
     "email": "1@178.is"
