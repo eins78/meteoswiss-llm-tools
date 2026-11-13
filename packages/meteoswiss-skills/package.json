@@ -1,6 +1,6 @@
 {
   "name": "meteoswiss-skills",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "MeteoSwiss Open Data skill — teaches AI agents to access Swiss weather data directly via HTTP",
   "author": "Max Albrecht <1@178.is>",
   "license": "CC0-1.0",
