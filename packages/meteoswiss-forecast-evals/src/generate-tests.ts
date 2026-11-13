@@ -31,6 +31,11 @@ import {
   stationMockFixture,
   stationMockQuestion,
 } from "./multiseries.js";
+import {
+  SYMBOL_ARMS,
+  symbolArmQuestions,
+  symbolFixture,
+} from "./symbol-cloud.js";
 import { compactSevenDayFixture } from "./compact-representation.js";
 import type { LocalForecastResponse } from "./types.js";
 
@@ -216,6 +221,20 @@ function main(): void {
     `${JSON.stringify(tests, null, 2)}\n`,
   );
 
+  // --- Hourly symbol + cloud cover (PR #183, see src/symbol-cloud.ts): main vs PR shape, 1 and
+  // 5 days. Its own file and config (promptfooconfig.symbol.yaml), so `pnpm run eval` does not
+  // grow. ---
+  const symbolTests: PromptfooTestCase[] = [];
+  for (const [armLabel, arm] of Object.entries(SYMBOL_ARMS)) {
+    const jsonBlob = writeFixtureJson(`symbol-${armLabel}`, symbolFixture(arm));
+    for (const q of symbolArmQuestions(arm))
+      symbolTests.push(toTestCase("n/a", `symbol-${armLabel}`, jsonBlob, q));
+  }
+  writeFileSync(
+    path.join(GENERATED_DIR, "symbol-tests.json"),
+    `${JSON.stringify(symbolTests, null, 2)}\n`,
+  );
+
   // --- Judge slice: small, open-ended prompts graded by an Opus rubric (see ../docs/spec.md
   // "Open-ended judge slice"). Rubric facts are pulled from the same ground-truth functions
   // as the programmatic questions, not hand-typed, so the rubric can't drift from the fixture.
@@ -275,6 +294,9 @@ function main(): void {
   );
 
   console.log(`Generated ${tests.length} test cases -> generated/tests.json`);
+  console.log(
+    `Generated ${symbolTests.length} symbol test cases -> generated/symbol-tests.json`,
+  );
   console.log(
     `Generated ${judgeTests.length} judge test cases -> generated/judge-tests.json`,
   );

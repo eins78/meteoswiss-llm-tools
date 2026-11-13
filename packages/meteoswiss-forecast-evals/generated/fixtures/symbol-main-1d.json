@@ -1,0 +1,220 @@
+{
+  "location": {
+    "name": "Zürich",
+    "type": "postal_code",
+    "elevation": 409,
+    "coordinates": {
+      "lat": 47.372289,
+      "lon": 8.542189
+    }
+  },
+  "generated": "2026-04-06T04:00:00.000000Z",
+  "forecast": [
+    {
+      "date": "2026-04-06",
+      "weather": "sunny intervals, light rain in the morning",
+      "weather_icon_url": "https://www.meteoschweiz.admin.ch/static/resources/weather-symbols/14.svg",
+      "temperature_min_c": 0.2,
+      "temperature_max_c": 18.5,
+      "precipitation_total_mm": 0.3,
+      "sunshine_total_minutes": 383,
+      "wind_avg_kmh": 9,
+      "wind_gust_max_kmh": 35,
+      "hourly": [
+        {
+          "time": "2026-04-06T00:00:00+02:00",
+          "temperature_c": 2,
+          "precip_mm": 0,
+          "sunshine_minutes": 0,
+          "wind_kmh": 5,
+          "wind_gust_kmh": 8
+        },
+        {
+          "time": "2026-04-06T01:00:00+02:00",
+          "temperature_c": 1.5,
+          "precip_mm": 0,
+          "sunshine_minutes": 0,
+          "wind_kmh": 5,
+          "wind_gust_kmh": 8
+        },
+        {
+          "time": "2026-04-06T02:00:00+02:00",
+          "temperature_c": 1,
+          "precip_mm": 0,
+          "sunshine_minutes": 0,
+          "wind_kmh": 5,
+          "wind_gust_kmh": 8
+        },
+        {
+          "time": "2026-04-06T03:00:00+02:00",
+          "temperature_c": 0.5,
+          "precip_mm": 0,
+          "sunshine_minutes": 0,
+          "wind_kmh": 5,
+          "wind_gust_kmh": 8
+        },
+        {
+          "time": "2026-04-06T04:00:00+02:00",
+          "temperature_c": 0.2,
+          "precip_mm": 0,
+          "sunshine_minutes": 0,
+          "wind_kmh": 5,
+          "wind_gust_kmh": 8
+        },
+        {
+          "time": "2026-04-06T05:00:00+02:00",
+          "temperature_c": 0.8,
+          "precip_mm": 0,
+          "sunshine_minutes": 0,
+          "wind_kmh": 8,
+          "wind_gust_kmh": 12
+        },
+        {
+          "time": "2026-04-06T06:00:00+02:00",
+          "temperature_c": 2,
+          "precip_mm": 0,
+          "sunshine_minutes": 10,
+          "wind_kmh": 10,
+          "wind_gust_kmh": 15
+        },
+        {
+          "time": "2026-04-06T07:00:00+02:00",
+          "temperature_c": 4,
+          "precip_mm": 0.1,
+          "sunshine_minutes": 5,
+          "wind_kmh": 12,
+          "wind_gust_kmh": 18
+        },
+        {
+          "time": "2026-04-06T08:00:00+02:00",
+          "temperature_c": 6.5,
+          "precip_mm": 0.2,
+          "sunshine_minutes": 0,
+          "wind_kmh": 15,
+          "wind_gust_kmh": 22
+        },
+        {
+          "time": "2026-04-06T09:00:00+02:00",
+          "temperature_c": 9,
+          "precip_mm": 0,
+          "sunshine_minutes": 20,
+          "wind_kmh": 12,
+          "wind_gust_kmh": 35
+        },
+        {
+          "time": "2026-04-06T10:00:00+02:00",
+          "temperature_c": 11.5,
+          "precip_mm": 0,
+          "sunshine_minutes": 45,
+          "wind_kmh": 10,
+          "wind_gust_kmh": 16
+        },
+        {
+          "time": "2026-04-06T11:00:00+02:00",
+          "temperature_c": 13.5,
+          "precip_mm": 0,
+          "sunshine_minutes": 55,
+          "wind_kmh": 10,
+          "wind_gust_kmh": 15
+        },
+        {
+          "time": "2026-04-06T12:00:00+02:00",
+          "temperature_c": 15,
+          "precip_mm": 0,
+          "sunshine_minutes": 60,
+          "wind_kmh": 10,
+          "wind_gust_kmh": 13
+        },
+        {
+          "time": "2026-04-06T13:00:00+02:00",
+          "temperature_c": 16.5,
+          "precip_mm": 0,
+          "sunshine_minutes": 58,
+          "wind_kmh": 8,
+          "wind_gust_kmh": 13
+        },
+        {
+          "time": "2026-04-06T14:00:00+02:00",
+          "temperature_c": 17.8,
+          "precip_mm": 0,
+          "sunshine_minutes": 55,
+          "wind_kmh": 10,
+          "wind_gust_kmh": 16
+        },
+        {
+          "time": "2026-04-06T15:00:00+02:00",
+          "temperature_c": 18.5,
+          "precip_mm": 0,
+          "sunshine_minutes": 40,
+          "wind_kmh": 12,
+          "wind_gust_kmh": 19
+        },
+        {
+          "time": "2026-04-06T16:00:00+02:00",
+          "temperature_c": 18,
+          "precip_mm": 0,
+          "sunshine_minutes": 20,
+          "wind_kmh": 14,
+          "wind_gust_kmh": 21
+        },
+        {
+          "time": "2026-04-06T17:00:00+02:00",
+          "temperature_c": 16.5,
+          "precip_mm": 0,
+          "sunshine_minutes": 10,
+          "wind_kmh": 13,
+          "wind_gust_kmh": 20
+        },
+        {
+          "time": "2026-04-06T18:00:00+02:00",
+          "temperature_c": 14,
+          "precip_mm": 0,
+          "sunshine_minutes": 5,
+          "wind_kmh": 12,
+          "wind_gust_kmh": 18
+        },
+        {
+          "time": "2026-04-06T19:00:00+02:00",
+          "temperature_c": 11,
+          "precip_mm": 0,
+          "sunshine_minutes": 0,
+          "wind_kmh": 10,
+          "wind_gust_kmh": 15
+        },
+        {
+          "time": "2026-04-06T20:00:00+02:00",
+          "temperature_c": 8.5,
+          "precip_mm": 0,
+          "sunshine_minutes": 0,
+          "wind_kmh": 8,
+          "wind_gust_kmh": 12
+        },
+        {
+          "time": "2026-04-06T21:00:00+02:00",
+          "temperature_c": 6,
+          "precip_mm": 0,
+          "sunshine_minutes": 0,
+          "wind_kmh": 6,
+          "wind_gust_kmh": 9
+        },
+        {
+          "time": "2026-04-06T22:00:00+02:00",
+          "temperature_c": 4,
+          "precip_mm": 0,
+          "sunshine_minutes": 0,
+          "wind_kmh": 5,
+          "wind_gust_kmh": 8
+        },
+        {
+          "time": "2026-04-06T23:00:00+02:00",
+          "temperature_c": 2.8,
+          "precip_mm": 0,
+          "sunshine_minutes": 0,
+          "wind_kmh": 5,
+          "wind_gust_kmh": 8
+        }
+      ]
+    }
+  ],
+  "source": "MeteoSwiss Open Data"
+}
