@@ -1,7 +1,8 @@
 /**
- * The MCP-vs-skills question set: 12 real-world Swiss weather questions covering the
- * MCP server's whole tool surface (current weather, forecasts, pollen, stations,
- * climate). Every expected answer is COMPUTED from live data captured by
+ * The MCP-vs-skills question set: 15 real-world Swiss weather questions covering the
+ * MCP server's whole tool surface (current weather, forecasts, the weather situation
+ * across the country, pollen, stations, climate). The 3 situation questions live in
+ * situation-questions.ts. Every expected answer is COMPUTED from live data captured by
  * capture-ground-truth.ts — never hand-typed (suite rule).
  *
  * Time-reference rule: questions embed absolute dates ("on Monday (2026-07-13)")
@@ -18,9 +19,13 @@ import {
   upcomingDays,
   type ForecastDay,
 } from "./ground-truth-live.js";
+import {
+  SITUATION_QUESTIONS,
+  type SituationCapture,
+} from "./situation-questions.js";
 
 export type QuestionFamily =
-  "current" | "forecast" | "pollen" | "stations" | "climate";
+  "current" | "forecast" | "situation" | "pollen" | "stations" | "climate";
 
 /** Everything capture-ground-truth.ts gathers before evaluating the questions. */
 export type GroundTruthContext = {
@@ -33,6 +38,8 @@ export type GroundTruthContext = {
   grStations: Array<{ abbr: string; name: string }>;
   /** city key -> forecast days (captured via the MCP server). */
   forecasts: Map<string, ForecastDay[]>;
+  /** situation call key -> regions (captured via the MCP server's situation tool). */
+  situation: Map<string, SituationCapture>;
   /** pollen station (lowercase abbr) -> canonical species -> particles/m³. */
   pollen: Map<string, Record<string, number | null>>;
   /** 'YYYY-MM' -> monthly mean temp for Zürich/Fluntern (NBCN). */
@@ -257,6 +264,7 @@ export const QUESTIONS: QuestionDef[] = [
       },
     }),
   },
+  ...SITUATION_QUESTIONS,
   {
     id: "pollen-grasses-zurich",
     family: "pollen",

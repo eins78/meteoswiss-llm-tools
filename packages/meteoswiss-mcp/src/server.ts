@@ -71,7 +71,7 @@ export function createServer(): McpServer {
     name: 'meteoswiss-mcp',
     version: getVersion(),
     description:
-      'Access official MeteoSwiss weather data for Switzerland. Provides multi-day forecasts, real-time measurements, station listings, and pollen data from the MeteoSwiss app and website.',
+      'Access official MeteoSwiss weather data for Switzerland. Provides multi-day forecasts, the weather situation across Switzerland, real-time measurements, station listings, and pollen data from the MeteoSwiss app and website.',
   });
   debugServer('MCP server created with name: meteoswiss-mcp');
 
@@ -95,7 +95,7 @@ export function createServer(): McpServer {
     'search',
     {
       description:
-        'Search MeteoSwiss website content in multiple languages (DE, FR, IT, EN). Returns relevant pages with URLs that can be passed to the fetch tool. Always returns up to 10 results per page — the upstream API has a fixed page size that cannot be changed. Note: pagination may return duplicate results across pages (upstream API limitation).',
+        'Search MeteoSwiss website content in multiple languages (DE, FR, IT, EN). Returns relevant pages with URLs that can be passed to the fetch tool. The pages hold articles and explanations, not forecast or measurement data: for a forecast use meteoswissLocalForecast (one place) or meteoswissWeatherSituation (all of Switzerland, e.g. where it is sunny or foggy). Always returns up to 10 results per page — the upstream API has a fixed page size that cannot be changed. Note: pagination may return duplicate results across pages (upstream API limitation).',
       inputSchema: searchMeteoSwissContentSchema.shape,
       outputSchema: SearchResultsSchema.shape,
     },
@@ -193,6 +193,8 @@ export function createServer(): McpServer {
       description: `Get a multi-day weather forecast for any Swiss location. Returns daily summaries (temperature, precipitation, sunshine, wind, weather icon) plus a hierarchical hourly breakdown of every series.
 
 This uses official MeteoSwiss Open Data — the same forecasts powering the MeteoSwiss app and website.
+
+For a question about an area rather than a place (where in Switzerland it is sunny, how high the fog reaches, which side of the Alps is wet), use meteoswissWeatherSituation: one call counts all forecast points, instead of one call per place here.
 
 Accepts:
 - Postal codes: "8001" (Zurich), "3000" (Bern), "1200" (Geneva)

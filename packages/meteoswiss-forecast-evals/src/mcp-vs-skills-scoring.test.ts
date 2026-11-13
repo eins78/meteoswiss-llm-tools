@@ -330,6 +330,7 @@ function syntheticCtx(): GroundTruthContext {
         ],
       ],
     ]),
+    situation: new Map(),
     pollen: new Map(),
     climateZurichMonthly: new Map([["2026-05", 15.3]]),
   };

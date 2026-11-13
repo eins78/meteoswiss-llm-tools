@@ -163,6 +163,7 @@ The server fully implements the Model Context Protocol specification:
 Beyond `meteoswissWeatherReport`, the server provides these OGD-based tools:
 
 - **meteoswissLocalForecast** — Multi-day weather forecast for ~6000 Swiss locations (postal codes, stations, mountain POIs)
+- **meteoswissWeatherSituation** — The weather symbol at all forecast points for one hour or a window, counted per forecast region and altitude band
 - **meteoswissCurrentWeather** — Real-time measurements from ~300 measurement stations (~160 full weather + ~140 precipitation-only)
 - **meteoswissStations** — List and search MeteoSwiss automatic weather stations
 - **meteoswissClimateData** — Homogeneous NBCN climate series (daily/monthly/yearly, decades back)
