@@ -85,6 +85,25 @@ export function pickRunAssets(item: StacItem): RunAssets {
   };
 }
 
+/**
+ * One warning per cloud file that comes from another run than the symbol file
+ * (the last-resort pick when no run has all four files).
+ *
+ * @param assets - The picked run
+ */
+export function cloudRunWarnings(assets: RunAssets): string[] {
+  const warnings: string[] = [];
+  assets.cloudKeys.forEach((key, i) => {
+    const run = key === null ? undefined : /\.(\d{12})\.[^.]+\.csv$/.exec(key)?.[1];
+    const cloud = CLOUD_PARAMS[i];
+    if (run === undefined || run === assets.run || cloud === undefined) return;
+    warnings.push(
+      `${cloud.param} (${cloud.label}): from the run of ${zurichIso(run)}, not the symbols' run of ${zurichIso(assets.run)}; the cloud rule may not match the symbols.`
+    );
+  });
+  return warnings;
+}
+
 /** Load one parameter file's index through the shared forecast caches. */
 async function loadIndex(item: StacItem, assetKey: string, param: string): Promise<ForecastIndex> {
   return getIndexedCsvData(
@@ -131,7 +150,12 @@ export async function loadRunFiles(item: StacItem): Promise<RunFiles> {
       'Without the cloud cover the cloud rule is off: fog_or_stratus counts only the fog and stratus symbols.'
     );
   }
-  return { assets, symbols, clouds: clouds.map((c) => c.index), warnings };
+  return {
+    assets,
+    symbols,
+    clouds: clouds.map((c) => c.index),
+    warnings: [...warnings, ...cloudRunWarnings(assets)],
+  };
 }
 
 /**

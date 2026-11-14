@@ -29,7 +29,7 @@ vi.mock('../../src/data/ogd-data-store.js', async (importOriginal) => {
 });
 
 import { getWeatherSituation } from '../../src/data/ogd-weather-situation.js';
-import { pickRunAssets } from '../../src/data/weather-situation-run.js';
+import { cloudRunWarnings, pickRunAssets } from '../../src/data/weather-situation-run.js';
 
 const DEFAULT_BANDS = [500, 1000, 1500, 2000];
 
@@ -260,6 +260,16 @@ describe('pickRunAssets', () => {
       symbolKey: file('202611131100', 'jww003i0'),
       cloudKeys: [file('202611131000', 'nprolohs'), null, null],
     });
+  });
+
+  it('warns for each cloud file from another run than the symbols', () => {
+    const picked = pickRunAssets(
+      item([file('202611131100', 'jww003i0'), file('202611131000', 'nprolohs')])
+    );
+    expect(cloudRunWarnings(picked)).toEqual([
+      expect.stringMatching(/^nprolohs \(low cloud cover\): from the run of .*not the symbols' run/),
+    ]);
+    expect(cloudRunWarnings(pickRunAssets(item(all('202611131000'))))).toEqual([]);
   });
 
   it('fails without a symbol file', () => {
