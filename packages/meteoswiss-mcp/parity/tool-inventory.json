@@ -680,7 +680,7 @@
     },
     {
       "name": "meteoswissLocalForecast",
-      "description": "Get a multi-day weather forecast for any Swiss location. Returns daily summaries (temperature, precipitation, sunshine, wind, weather icon) plus a hierarchical hourly breakdown of every series.\n\nThis uses official MeteoSwiss Open Data — the same forecasts powering the MeteoSwiss app and website.\n\nAccepts:\n- Postal codes: \"8001\" (Zurich), \"3000\" (Bern), \"1200\" (Geneva)\n- Station abbreviations: \"SMA\" (Zurich Fluntern), \"BER\" (Bern)\n- Place names: \"Zurich\", \"Basel\", \"Lugano\"\n\nCoverage: ~6000 Swiss locations (all postal codes + weather stations + mountain points).\nForecast horizon: up to 9 days. Updated hourly.\n\nEach day's summary fields: temperature_min_c, temperature_max_c, precipitation_total_mm,\nsunshine_total_minutes, wind_avg_kmh, wind_gust_max_kmh, weather, weather_icon_url.\n\nEach day also includes \"hourly\": one array of per-hour objects covering every series\ntogether — { time, temperature_c, precip_mm, sunshine_minutes, wind_kmh, wind_gust_kmh } —\nuseful for judging *when* rain, sun or wind is expected, not just the daily summary.\nWith detail: \"sky\", each hourly object also has weather_code, weather, cloud_low_pct,\ncloud_mid_pct and cloud_high_pct; use it for fog, stratus or low cloud questions:\n- Each entry's \"time\" is already local wall-clock time for the location (Europe/Zurich),\n  with the UTC offset included, e.g. \"2026-07-09T14:00:00+02:00\". It is NOT UTC — do not\n  convert it.\n- With detail: \"sky\": \"weather\" / \"weather_code\" is MeteoSwiss's weather symbol (e.g. \"fog\", \"stratus\",\n  \"very cloudy, light rain\"), one value per hour, describing the 3 hours that end at\n  \"time\". The day's \"weather\" is one symbol for the daytime only. The cloud fields are the\n  cover at \"time\". The symbol does not always name low stratus: an \"overcast\" hour with\n  cloud_low_pct near 100 and little mid or high cloud is a low cloud deck.\n- With detail: \"sky\", \"warnings\" appears only when one of the extra files could not be\n  loaded; the fields from that file are then null for every hour.\n- A dry/calm/sunless hour is reported as its measured value (often 0), not omitted. A\n  fully dry day is still a full array of zero-precipitation hours, not an empty array.\n- Each field is independently null if just THAT series has no reading for a given hour —\n  the other fields for that same hour are still populated. An hour is omitted entirely\n  only when temperature, precipitation, sunshine, wind and gust are all missing for it.\n- \"hourly\" itself is null when no hourly breakdown exists for this location at all (a\n  total data gap); [] only when this location supports hourly data but none was available\n  for that specific day.\n- For weather stations, temperature_min_c/temperature_max_c/precipitation_total_mm are\n  MeteoSwiss's own official daily aggregates — a different, separately-curated product\n  from the hourly series shown alongside them. They can legitimately NOT match summing/\n  averaging the hourly entries for that day; this is expected, not a data error.\n  sunshine_total_minutes/wind_avg_kmh/wind_gust_max_kmh have no official daily product for\n  stations and are always derived from the hourly series. For postal codes/mountain\n  points, every summary field is derived from the same hourly series shown alongside it,\n  so it always matches summing/averaging that series exactly.",
+      "description": "Get a multi-day weather forecast for any Swiss location. Returns daily summaries (temperature, precipitation, sunshine, wind, weather icon) plus a hierarchical hourly breakdown of every series.\n\nThis uses official MeteoSwiss Open Data — the same forecasts powering the MeteoSwiss app and website.\n\nFor a question about an area rather than a place (where in Switzerland it is sunny, how high the fog reaches, which side of the Alps is wet), use meteoswissWeatherSituation: one call counts all forecast points, instead of one call per place here.\n\nAccepts:\n- Postal codes: \"8001\" (Zurich), \"3000\" (Bern), \"1200\" (Geneva)\n- Station abbreviations: \"SMA\" (Zurich Fluntern), \"BER\" (Bern)\n- Place names: \"Zurich\", \"Basel\", \"Lugano\"\n\nCoverage: ~6000 Swiss locations (all postal codes + weather stations + mountain points).\nForecast horizon: up to 9 days. Updated hourly.\n\nEach day's summary fields: temperature_min_c, temperature_max_c, precipitation_total_mm,\nsunshine_total_minutes, wind_avg_kmh, wind_gust_max_kmh, weather, weather_icon_url.\n\nEach day also includes \"hourly\": one array of per-hour objects covering every series\ntogether — { time, temperature_c, precip_mm, sunshine_minutes, wind_kmh, wind_gust_kmh } —\nuseful for judging *when* rain, sun or wind is expected, not just the daily summary.\nWith detail: \"sky\", each hourly object also has weather_code, weather, cloud_low_pct,\ncloud_mid_pct and cloud_high_pct; use it for fog, stratus or low cloud questions:\n- Each entry's \"time\" is already local wall-clock time for the location (Europe/Zurich),\n  with the UTC offset included, e.g. \"2026-07-09T14:00:00+02:00\". It is NOT UTC — do not\n  convert it.\n- With detail: \"sky\": \"weather\" / \"weather_code\" is MeteoSwiss's weather symbol (e.g. \"fog\", \"stratus\",\n  \"very cloudy, light rain\"), one value per hour, describing the 3 hours that end at\n  \"time\". The day's \"weather\" is one symbol for the daytime only. The cloud fields are the\n  cover at \"time\". The symbol does not always name low stratus: an \"overcast\" hour with\n  cloud_low_pct near 100 and little mid or high cloud is a low cloud deck.\n- With detail: \"sky\", \"warnings\" appears only when one of the extra files could not be\n  loaded; the fields from that file are then null for every hour.\n- A dry/calm/sunless hour is reported as its measured value (often 0), not omitted. A\n  fully dry day is still a full array of zero-precipitation hours, not an empty array.\n- Each field is independently null if just THAT series has no reading for a given hour —\n  the other fields for that same hour are still populated. An hour is omitted entirely\n  only when temperature, precipitation, sunshine, wind and gust are all missing for it.\n- \"hourly\" itself is null when no hourly breakdown exists for this location at all (a\n  total data gap); [] only when this location supports hourly data but none was available\n  for that specific day.\n- For weather stations, temperature_min_c/temperature_max_c/precipitation_total_mm are\n  MeteoSwiss's own official daily aggregates — a different, separately-curated product\n  from the hourly series shown alongside them. They can legitimately NOT match summing/\n  averaging the hourly entries for that day; this is expected, not a data error.\n  sunshine_total_minutes/wind_avg_kmh/wind_gust_max_kmh have no official daily product for\n  stations and are always derived from the hourly series. For postal codes/mountain\n  points, every summary field is derived from the same hourly series shown alongside it,\n  so it always matches summing/averaging that series exactly.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1213,8 +1213,425 @@
       }
     },
     {
+      "name": "meteoswissWeatherSituation",
+      "description": "Count the weather over Switzerland at one hour: MeteoSwiss's hourly weather symbol at all ~5800 forecast points (postal code centres, weather stations, mountain points), grouped into weather categories per MeteoSwiss forecast region and altitude band. Use it for area questions: where it is sunny, how high the fog or low stratus reaches, whether it is sunny above it, where it rains or snows. For the forecast at one place, use meteoswissLocalForecast.\n\nRegions are MeteoSwiss's seven forecast regions: jura, mittelland (Swiss Plateau), alpennordhang (northern Alps and Prealps), wallis (Valais), engadin, nordundmittelbuenden (northern and central Grisons), alpensuedseite (southern side of the Alps: Ticino and the southern valleys of Grisons). Points outside MeteoSwiss's seven regions are counted in the nearest one.\n\nNarrow the count with region, bbox (a WGS84 box), near (air distance around a place, at most 150 km) and min_altitude_m / max_altitude_m; given together, a point must pass all of them. With until, the count covers every hour of a window of up to 12 hours.\n\nCategories: sunny, clear_night, partly_sunny, cloudy, high_cloud, fog_or_stratus, rain, sleet, snow, thunder; the answer's \"legend\" gives the symbol codes of each. fog_or_stratus also counts an overcast or partly sunny hour under a low cloud deck (low cloud >= 80 %, medium and high cloud < 50 %): MeteoSwiss's symbol often shows such a deck as \"overcast\".\n\nReading the answer:\n- Times are local Europe/Zurich time with the UTC offset. The symbol of an hour describes the 3 hours that end at that time.\n- \"points\" counts forecast points, not area: they are dense in towns and the lowlands and sparse in the mountains. A band with few points says little.\n- Per band, \"pct\" holds the shares in whole percent (they add up to 100) and \"dominant\" the most frequent category.\n- jura, mittelland and alpennordhang also carry \"fog_top_m\" (experimental): the top of a fog sea to the nearest 100 m: the 100 m bands that are mostly fog_or_stratus, starting with the region's lowest band (below 1000 m) up, with mostly sun in the 300 m above (\"sunny_above_fog_pct\"). null means no fog sea with sun above: no fog layer low down, or cloud above it. For a fog question, also read the bands yourself.\n- With map: \"grid\", \"grid.rows\" is a coarse map, north at the top: one character per 5 km cell, the most frequent category there (\"grid.key\"). Use it to say where (west or east, which valleys) rather than how much.\n- The forecast is updated hourly. Further ahead it may have symbols only every few hours; a time the run does not cover is an error that names the hours it has.\n\nSource: MeteoSwiss Open Data; the forecast regions come from the MeteoSwiss website (Source: MeteoSwiss).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "time": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40,
+            "description": "The hour to count, in local Swiss time: \"2026-11-14T10:00\" (minutes are ignored). A time with a UTC offset, e.g. \"2026-11-14T10:00:00+01:00\" from meteoswissLocalForecast, is also accepted."
+          },
+          "until": {
+            "description": "Last hour of a window, included, at most 12 h after time; same format as time. Every hour from time to until is counted: \"points\" stay points, the shares in \"pct\" are then shares of point-hours (each point once per hour).",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "region": {
+            "description": "Only this MeteoSwiss forecast region: jura, mittelland (Swiss Plateau), alpennordhang (northern Alps and Prealps), wallis (Valais), engadin, nordundmittelbuenden (northern and central Grisons), alpensuedseite (southern side of the Alps, Ticino). Default: all seven.",
+            "type": "string",
+            "enum": [
+              "jura",
+              "mittelland",
+              "alpennordhang",
+              "wallis",
+              "engadin",
+              "nordundmittelbuenden",
+              "alpensuedseite"
+            ]
+          },
+          "bbox": {
+            "description": "Only points inside this WGS84 box: [west, south, east, north] in degrees, e.g. [7.0, 46.5, 8.5, 47.5].",
+            "minItems": 4,
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "near": {
+            "description": "Only points within radius_km of a place, e.g. {\"lat\": 47.37, \"lon\": 8.54, \"radius_km\": 40} around Zurich. Air distance, not travel time.",
+            "type": "object",
+            "properties": {
+              "lat": {
+                "type": "number",
+                "minimum": 45,
+                "maximum": 48.5,
+                "description": "Latitude, WGS84 degrees"
+              },
+              "lon": {
+                "type": "number",
+                "minimum": 5,
+                "maximum": 11.5,
+                "description": "Longitude, WGS84 degrees"
+              },
+              "radius_km": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 150,
+                "description": "Radius in km, air distance, at most 150"
+              }
+            },
+            "required": [
+              "lat",
+              "lon",
+              "radius_km"
+            ]
+          },
+          "min_altitude_m": {
+            "description": "Only points at or above this altitude, in m above sea level",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5000
+          },
+          "max_altitude_m": {
+            "description": "Only points at or below this altitude, in m above sea level",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5000
+          },
+          "bands": {
+            "default": [
+              500,
+              1000,
+              1500,
+              2000
+            ],
+            "description": "Altitude band edges in metres, ascending, e.g. [600, 800, 1000] for a fog question; default [500, 1000, 1500, 2000] gives the bands <500, 500-999, 1000-1499, 1500-1999, >=2000. [] gives one band.",
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4800
+            }
+          },
+          "map": {
+            "default": "none",
+            "description": "\"grid\" adds a coarse map: the most frequent category in each 5 km cell, as text rows (about 3 KB more for the whole country). Default \"none\".",
+            "type": "string",
+            "enum": [
+              "none",
+              "grid"
+            ]
+          }
+        },
+        "required": [
+          "time"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "valid": {
+            "type": "object",
+            "properties": {
+              "from": {
+                "type": "string",
+                "description": "First counted hour in local Europe/Zurich time with offset, e.g. \"2026-11-14T10:00:00+01:00\""
+              },
+              "until": {
+                "description": "Last hour of the window, same format; present only when until was given",
+                "type": "string"
+              },
+              "hours": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Number of hours counted"
+              }
+            },
+            "required": [
+              "from",
+              "hours"
+            ],
+            "additionalProperties": false
+          },
+          "run": {
+            "type": "string",
+            "description": "The forecast run the counts come from, local time with offset"
+          },
+          "points": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Forecast points counted (after the filters)"
+          },
+          "missing": {
+            "description": "Point-hours left out because the run has no weather symbol for them; present only when more than 0",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "regions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "enum": [
+                    "jura",
+                    "mittelland",
+                    "alpennordhang",
+                    "wallis",
+                    "engadin",
+                    "nordundmittelbuenden",
+                    "alpensuedseite"
+                  ],
+                  "description": "MeteoSwiss forecast region id"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "The region's German name as MeteoSwiss writes it"
+                },
+                "points": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "Forecast points in this region"
+                },
+                "dominant": {
+                  "type": "string",
+                  "enum": [
+                    "sunny",
+                    "clear_night",
+                    "partly_sunny",
+                    "cloudy",
+                    "high_cloud",
+                    "fog_or_stratus",
+                    "rain",
+                    "sleet",
+                    "snow",
+                    "thunder"
+                  ],
+                  "description": "The most frequent category over the whole region"
+                },
+                "bands": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "band": {
+                        "type": "string",
+                        "description": "Altitude band in m, e.g. \"<500\", \"500-999\", \">=2000\""
+                      },
+                      "points": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991,
+                        "description": "Forecast points in this band"
+                      },
+                      "pct": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string",
+                          "enum": [
+                            "sunny",
+                            "clear_night",
+                            "partly_sunny",
+                            "cloudy",
+                            "high_cloud",
+                            "fog_or_stratus",
+                            "rain",
+                            "sleet",
+                            "snow",
+                            "thunder"
+                          ]
+                        },
+                        "additionalProperties": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "description": "Share of the points (over a window: of the point-hours) per category, in whole percent, largest first; they add up to 100. Categories at 0 % are left out."
+                      },
+                      "dominant": {
+                        "type": "string",
+                        "enum": [
+                          "sunny",
+                          "clear_night",
+                          "partly_sunny",
+                          "cloudy",
+                          "high_cloud",
+                          "fog_or_stratus",
+                          "rain",
+                          "sleet",
+                          "snow",
+                          "thunder"
+                        ],
+                        "description": "The most frequent category in this band"
+                      }
+                    },
+                    "required": [
+                      "band",
+                      "points",
+                      "pct",
+                      "dominant"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "Altitude bands with points, lowest first"
+                },
+                "fog_top_m": {
+                  "description": "Experimental. Top of a fog sea in m, to the nearest 100 m: starting at the lowest 100 m band of the region, which must be mostly fog_or_stratus (and start below 1000 m), up as long as the bands stay so, with mostly sun above. null when the points show no fog sea with sun above. Only for jura, mittelland and alpennordhang.",
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "sunny_above_fog_pct": {
+                  "description": "Experimental. Share of the points in the 300 m above fog_top_m that are sunny, partly sunny or a clear night, in whole percent; null without a fog top",
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "fog_top_points": {
+                  "description": "Experimental. Points (over a window: point-hours) the fog top rests on: the fog layer and the 300 m above; null without a fog top",
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "points",
+                "dominant",
+                "bands"
+              ],
+              "additionalProperties": false
+            },
+            "description": "MeteoSwiss forecast regions, west to east and north to south"
+          },
+          "legend": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "enum": [
+                "sunny",
+                "clear_night",
+                "partly_sunny",
+                "cloudy",
+                "high_cloud",
+                "fog_or_stratus",
+                "rain",
+                "sleet",
+                "snow",
+                "thunder"
+              ]
+            },
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "What each category in this answer means, with its MeteoSwiss symbol codes"
+          },
+          "grid": {
+            "description": "Present only with map: \"grid\" and at least one point: a coarse map of the categories",
+            "type": "object",
+            "properties": {
+              "crs": {
+                "type": "string",
+                "const": "EPSG:2056",
+                "description": "Swiss LV95 coordinates, metres"
+              },
+              "cell_m": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "Cell size in m (5000)"
+              },
+              "west": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "LV95 east coordinate of the west edge of the rows, m"
+              },
+              "north": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "LV95 north coordinate of the north edge of the first row, m"
+              },
+              "rows": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "One string per row of cells, north to south; character i is the cell i × cell_m east of \"west\". Each character is the most frequent category of the points in the cell (see \"key\")."
+              },
+              "key": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "Character → category; \".\" = no forecast point"
+              }
+            },
+            "required": [
+              "crs",
+              "cell_m",
+              "west",
+              "north",
+              "rows",
+              "key"
+            ],
+            "additionalProperties": false
+          },
+          "warnings": {
+            "description": "Present only when something limits the answer: a cloud cover file could not be loaded (the cloud rule is then off and fog_or_stratus counts only the fog and stratus symbols), or the run has symbols for only some hours of the window.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "source": {
+            "type": "string",
+            "description": "Data attribution"
+          }
+        },
+        "required": [
+          "valid",
+          "run",
+          "points",
+          "regions",
+          "legend",
+          "source"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      }
+    },
+    {
       "name": "search",
-      "description": "Search MeteoSwiss website content in multiple languages (DE, FR, IT, EN). Returns relevant pages with URLs that can be passed to the fetch tool. Always returns up to 10 results per page — the upstream API has a fixed page size that cannot be changed. Note: pagination may return duplicate results across pages (upstream API limitation).",
+      "description": "Search MeteoSwiss website content in multiple languages (DE, FR, IT, EN). Returns relevant pages with URLs that can be passed to the fetch tool. The pages hold articles and explanations, not forecast or measurement data: for a forecast use meteoswissLocalForecast (one place) or meteoswissWeatherSituation (all of Switzerland, e.g. where it is sunny or foggy). Always returns up to 10 results per page — the upstream API has a fixed page size that cannot be changed. Note: pagination may return duplicate results across pages (upstream API limitation).",
       "inputSchema": {
         "type": "object",
         "properties": {

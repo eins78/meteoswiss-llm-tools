@@ -63,6 +63,7 @@ The MCP server is implemented using:
    - `/health` - Health check endpoint
 4. **Tools** (`src/tools/`, `src/data/`): MCP tools for weather data
    - `meteoswissLocalForecast`: Multi-day forecasts for ~6000 Swiss locations (postal codes, stations, place names)
+   - `meteoswissWeatherSituation`: The weather over all ~5800 forecast points at one hour, counted per MeteoSwiss forecast region × altitude band × weather category
    - `meteoswissCurrentWeather`: Real-time measurements from ~300 automatic stations (~160 full weather + ~140 precipitation-only)
    - `meteoswissStations`: Station discovery and search by name, canton, or coordinates
    - `meteoswissPollenData`: Pollen concentration monitoring from ~15 stations
@@ -222,6 +223,8 @@ When implementing MCP tools:
 - `PORT`: Server port (default: 3000, not used in stdio mode)
 - `OGD_PARSE_CACHE_MAX_BYTES`: In-memory bound for parsed forecast indexes (default 268435456 = 256 MiB; a forecast run is six files, or nine with ~140 MB parsed once any call asks for `detail: "sky"`; `0` disables retention)
 - `OGD_PARSE_WORKERS`: Worker threads for building forecast indexes (default `min(2, cores - 1)`; `0` builds on the main thread)
+- `FORECAST_REGIONS_BASE_URL`: Where the seven forecast-region GeoJSON files are downloaded from (default: the MeteoSwiss website's map resources)
+- `FORECAST_REGIONS_CACHE_TTL`: How long the region files are used before the next download (default 2592000000 = 30 days; at least 1 hour)
 
 ### Configuration Management Strategy
 Fail fast with helpful error messages instead of silent fallbacks:
@@ -394,6 +397,26 @@ For a **skill-facing change** (anything under `packages/meteoswiss-skills/`), ad
   Benchmarks: `scripts/bench-forecast.ts` (end to end), `scripts/bench-parse.ts` (parse only, with a
   `--dump`/`--check` correctness fingerprint over every point of every file).
 - **`meteoswiss` prefix on tools**: LLM tool selection reliability — helps models distinguish weather tools from other MCP servers.
+- **Forecast regions from the website, at runtime, never in the repo** (`forecast-regions-source.ts`,
+  `forecast-regions.ts`, `forecast-point-regions.ts`): MeteoSwiss does not publish its forecast regions as Open
+  Data; the website's "Forecast regions" map loads them as GeoJSON. The server downloads only the seven files that
+  split the country, on first use, keeps them 30 days (the website's own `max-age`) and credits "Source:
+  MeteoSwiss". The files are website content: never commit them, test fixtures included (the fixtures are
+  synthetic boxes). `forecast-regions-source.ts` is the one place to change if MeteoSwiss publishes them as Open
+  Data. A set is replaced only when all seven parse as polygons inside Switzerland; a failed refresh keeps the
+  old set (logged, next try after an hour). They live in `pinned/` of the disk cache, which the prune never
+  evicts: eviction goes by write age, so the forecast churn would otherwise evict exactly these files first and
+  turn a 30-day cache into a download every few hours. A point outside all seven (about 50: Urseren, border
+  peaks and passes) takes the region with the nearest boundary, marked `method: 'nearest'`.
+  `scripts/check-forecast-regions.ts` is the live check (network, by hand).
+- **`meteoswissWeatherSituation` counts points, not area** (`ogd-weather-situation.ts`, `weather-situation-count.ts`,
+  `support/weather-categories.ts`): it reads the files `meteoswissLocalForecast` reads with `detail: "sky"`
+  (`jww003i0` plus the three cloud cover files) through the same caches, so it downloads nothing of its own. The 42+42
+  symbol codes fold into ten categories; a cloudy or partly sunny hour under a low deck (low ≥ 0.8, medium and high
+  < 0.5) counts as `fog_or_stratus`, because the symbol often shows low stratus as "overcast". The symbol file is
+  required; a failed cloud file turns the rule off with a warning. Counting is pure (`countSituation` over samples),
+  so its tests use synthetic points; the fixture rows (28.03.2026 07–11 UTC, see the forecasts fixture README) are a
+  smoke test of the whole path. Shares use largest-remainder rounding so they add up to 100.
 
 ## References
 

@@ -93,6 +93,9 @@ real-world weather Q&A, how do the two access methods this repo ships — the MC
 structured tools vs the `meteoswiss-ogd` skill's direct HTTP/bash approach — compare on
 accuracy, tokens, and cost? Findings from the first run (2026-07-12): see
 [`docs/results/2026-07-12-mcp-vs-skills.md`](./docs/results/2026-07-12-mcp-vs-skills.md).
+That run had 12 questions; three area questions for `meteoswissWeatherSituation` (the share of
+sunny points above 1500 m, fog over the Plateau, the wetter side of the Alps) came later and
+have no run yet.
 
 Unlike the fixture-based comprehension track above, this one runs **agentic loops against
 live data**: custom promptfoo providers drive an OpenRouter tool-calling loop, where the
@@ -105,7 +108,7 @@ fairness rules and the budget guard (hard abort at `MCP_SKILLS_BUDGET_USD`, defa
 
 ```bash
 pnpm run mcp-skills:smoke      # 1 model x both methods x 3 questions (~$0.05)
-pnpm run mcp-skills:eval       # full sweep: 2 models x 2 methods x 12 questions (~$0.65)
+pnpm run mcp-skills:eval       # full sweep: 2 models x 2 methods x 17 questions (~$0.90; 12 questions cost ~$0.65)
 pnpm run mcp-skills:summarize  # accuracy/token/cost tables from the last run
 pnpm run mcp-skills:charts     # SVG charts into docs/results/<date>-mcp-vs-skills/
 ```

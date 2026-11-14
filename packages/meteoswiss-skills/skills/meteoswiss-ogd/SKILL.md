@@ -89,7 +89,30 @@ curl -s "$ASSET_URL" | awk -F';' 'NR==1 || $1=="71"'
 
 **Weather icon SVGs**: `https://www.meteoschweiz.admin.ch/static/resources/weather-symbols/{CODE}.svg` — replace `{CODE}` with the numeric icon code (e.g., `1.svg` for sunny, `101.svg` for clear night). See `${CLAUDE_SKILL_DIR}/REFERENCE.md` for all codes.
 
-## 4. Get Pollen Data
+## 4. Weather Situation Across Switzerland
+
+<!-- mcp-tool: meteoswissWeatherSituation -->
+
+For area questions ("where is it sunny on Saturday morning?", "how high does the fog reach?"): count the hourly weather symbol `jww003i0` of all ~5800 forecast points at one hour, by altitude. One file per run holds every point (about 30 MB), plus the point metadata for the altitudes.
+
+```bash
+# Points per 500 m band and symbol at one hour. TS is UTC: 10:00 Swiss winter time = 09 UTC (summer: 08 UTC)
+TS=202611140900
+STAC=https://data.geo.admin.ch/api/stac/v1/collections/ch.meteoschweiz.ogd-local-forecasting
+ITEM=$(curl -s "$STAC/items?limit=10" | jq -r '[.features[] | select((.assets | length) > 0) | .id] | sort | reverse | .[0]')
+JWW_URL=$(curl -s "$STAC/items/$ITEM" | jq -r '[.assets | to_entries[] | select(.key | endswith(".jww003i0.csv"))] | sort_by(.key) | last | .value.href')
+META_URL=$(curl -s "$STAC" | jq -r '[.assets | to_entries[] | select(.key | contains("meta_point")) | .value.href] | first')
+curl -s "$META_URL" | iconv -f latin1 -t utf-8 > meta_point.csv
+curl -s "$JWW_URL" > jww003i0.csv
+awk -F';' -v ts="$TS" '
+  NR == FNR { if (FNR > 1) h[$1 ":" $2] = $10; next }   # column 10: point_height_masl
+  $3 == ts && ($1 ":" $2) in h { n[int(h[$1 ":" $2] / 500) * 500 ";" $4]++ }
+  END { for (k in n) print k ";" n[k] }' meta_point.csv jww003i0.csv | sort -t';' -k1,1n -k3,3nr
+```
+
+Each line is `band;symbol;points`: `500;28;412` means 412 points between 500 and 999 m show fog (28). Group the codes into categories: 1-2 sunny, 101-102 clear night, 3 partly sunny, 4, 5, 35 and 103 cloudy, 26 high cloud, 27-28 fog or low stratus, the rest rain, sleet, snow or thunder (all codes in `${CLAUDE_SKILL_DIR}/REFERENCE.md`). The symbol often shows low stratus as "overcast": an hour with symbol 3, 4, 5 or 35 and low cloud `nprolohs` ≥ 0.8 while `npromths` and `nprohihs` stay below 0.5 is a low cloud deck too (join those files the same way). The MCP server also splits the counts by MeteoSwiss's seven forecast regions (Jura, Mittelland, Alpennordhang, Wallis, Engadin, Nord- und Mittelbünden, Alpensüdseite). Those regions are not Open Data; without the server, filter the points by their coordinates in `meta_point.csv` instead.
+
+## 5. Get Pollen Data
 
 <!-- mcp-tool: meteoswissPollenData -->
 
@@ -103,7 +126,7 @@ curl -s 'https://data.geo.admin.ch/ch.meteoschweiz.ogd-pollen/pzh/ogd-pollen_pzh
 
 Columns: `station_abbr`, `reference_timestamp`, then pollen parameter codes (e.g. `kabetud1`=birch, `khpoacd1`=grasses) in particles/m³. See `${CLAUDE_SKILL_DIR}/REFERENCE.md` for all codes.
 
-## 5. Get Climate Data
+## 6. Get Climate Data
 
 <!-- mcp-tool: meteoswissClimateData -->
 

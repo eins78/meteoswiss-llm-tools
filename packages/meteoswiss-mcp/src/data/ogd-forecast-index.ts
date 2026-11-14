@@ -128,3 +128,67 @@ export function lookupForecastSeries(
   }
   return out;
 }
+
+/**
+ * Id of a timestamp in the index's interned table, for {@link forecastValueAt}.
+ *
+ * @param index - Index from {@link buildForecastIndex}
+ * @param ts - `Date` as in the CSV (`YYYYMMDDhhmm`, UTC)
+ * @returns The id, or -1 if no row of the file has this timestamp
+ */
+export function timestampId(index: ForecastIndex, ts: string): number {
+  return index.timestampTable.indexOf(ts);
+}
+
+/** Wanted timestamps of one index, for {@link forecastValuesAt}. */
+export type TimestampSlots = {
+  /** Slot of each timestamp id (position in the wanted list), -1 if not wanted */
+  slotOf: Int32Array;
+  /** Number of wanted timestamps */
+  count: number;
+};
+
+/**
+ * Prepare a lookup of several timestamps in one index.
+ *
+ * @param index - Index from {@link buildForecastIndex}
+ * @param timestamps - Wanted `Date` values (`YYYYMMDDhhmm`, UTC), in output order
+ */
+export function timestampSlots(
+  index: ForecastIndex,
+  timestamps: readonly string[]
+): TimestampSlots {
+  const slotOf = new Int32Array(index.timestampTable.length).fill(-1);
+  timestamps.forEach((ts, slot) => {
+    const id = timestampId(index, ts);
+    if (id >= 0) slotOf[id] = slot;
+  });
+  return { slotOf, count: timestamps.length };
+}
+
+/**
+ * One point's values at several timestamps, in one pass over its series rather
+ * than building the whole `Date → value` map. Duplicate dates resolve
+ * last-write-wins, like {@link lookupForecastSeries}.
+ *
+ * @param index - Index from {@link buildForecastIndex}
+ * @param key - `point_id:point_type_id`, e.g. `"800100:2"`
+ * @param slots - From {@link timestampSlots} for the same index
+ * @returns One value per wanted timestamp; NaN if missing, or if the point or
+ *   timestamp is not in the file
+ */
+export function forecastValuesAt(
+  index: ForecastIndex,
+  key: string,
+  slots: TimestampSlots
+): Float64Array {
+  const out = new Float64Array(slots.count).fill(NaN);
+  const series = index.points.get(key);
+  if (series === undefined) return out;
+  const end = series.offset + series.length;
+  for (let i = series.offset; i < end; i++) {
+    const slot = slots.slotOf[index.timestamps[i] ?? 0] ?? -1;
+    if (slot >= 0) out[slot] = index.values[i] ?? NaN;
+  }
+  return out;
+}

@@ -218,7 +218,7 @@ function main(): void {
   const accuracy = groupedColumns({
     title: "Accuracy — MCP server vs OGD skill",
     subtitle:
-      "12 live weather questions each; pass = every answer field within tolerance",
+      "Live weather questions; pass = every answer field within tolerance",
     groups: models.map((model) => ({
       label: model,
       values: {
@@ -260,7 +260,7 @@ function main(): void {
   const costPerCorrect = groupedColumns({
     title: "Cost per correct answer",
     subtitle:
-      "Total OpenRouter cost of all 12 attempts divided by correct answers (US cents)",
+      "Total OpenRouter cost of all attempts divided by correct answers (US cents)",
     groups: models.map((model) => ({
       label: model,
       values: {

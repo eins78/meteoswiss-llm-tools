@@ -17,6 +17,13 @@ import {
 import type { GetLocalForecastParams } from './schemas/ogd-local-forecast.js';
 import { getLocalForecast } from './data/ogd-local-forecast.js';
 import {
+  GetWeatherSituationParamsSchema,
+  WeatherSituationResponseSchema,
+  WEATHER_SITUATION_DESCRIPTION,
+} from './schemas/ogd-weather-situation.js';
+import type { GetWeatherSituationParams } from './schemas/ogd-weather-situation.js';
+import { getWeatherSituation } from './data/ogd-weather-situation.js';
+import {
   GetCurrentWeatherParamsSchema,
   CurrentWeatherResponseSchema,
 } from './schemas/ogd-current-weather.js';
@@ -64,7 +71,7 @@ export function createServer(): McpServer {
     name: 'meteoswiss-mcp',
     version: getVersion(),
     description:
-      'Access official MeteoSwiss weather data for Switzerland. Provides multi-day forecasts, real-time measurements, station listings, and pollen data from the MeteoSwiss app and website.',
+      'Access official MeteoSwiss weather data for Switzerland. Provides multi-day forecasts, the weather situation across Switzerland, real-time measurements, station listings, and pollen data from the MeteoSwiss app and website.',
   });
   debugServer('MCP server created with name: meteoswiss-mcp');
 
@@ -88,7 +95,7 @@ export function createServer(): McpServer {
     'search',
     {
       description:
-        'Search MeteoSwiss website content in multiple languages (DE, FR, IT, EN). Returns relevant pages with URLs that can be passed to the fetch tool. Always returns up to 10 results per page — the upstream API has a fixed page size that cannot be changed. Note: pagination may return duplicate results across pages (upstream API limitation).',
+        'Search MeteoSwiss website content in multiple languages (DE, FR, IT, EN). Returns relevant pages with URLs that can be passed to the fetch tool. The pages hold articles and explanations, not forecast or measurement data: for a forecast use meteoswissLocalForecast (one place) or meteoswissWeatherSituation (all of Switzerland, e.g. where it is sunny or foggy). Always returns up to 10 results per page — the upstream API has a fixed page size that cannot be changed. Note: pagination may return duplicate results across pages (upstream API limitation).',
       inputSchema: searchMeteoSwissContentSchema.shape,
       outputSchema: SearchResultsSchema.shape,
     },
@@ -187,6 +194,8 @@ export function createServer(): McpServer {
 
 This uses official MeteoSwiss Open Data — the same forecasts powering the MeteoSwiss app and website.
 
+For a question about an area rather than a place (where in Switzerland it is sunny, how high the fog reaches, which side of the Alps is wet), use meteoswissWeatherSituation: one call counts all forecast points, instead of one call per place here.
+
 Accepts:
 - Postal codes: "8001" (Zurich), "3000" (Bern), "1200" (Geneva)
 - Station abbreviations: "SMA" (Zurich Fluntern), "BER" (Bern)
@@ -263,6 +272,39 @@ cloud_mid_pct and cloud_high_pct; use it for fog, stratus or low cloud questions
               type: 'text' as const,
               text: `Failed to get local forecast: ${errorMessage}`,
             },
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // Register the weather-situation tool (OGD forecast + MeteoSwiss forecast regions)
+  debugServer('Registering tool: meteoswissWeatherSituation');
+  server.registerTool(
+    'meteoswissWeatherSituation',
+    {
+      description: WEATHER_SITUATION_DESCRIPTION,
+      inputSchema: GetWeatherSituationParamsSchema.shape,
+      outputSchema: WeatherSituationResponseSchema.shape,
+    },
+    async (params: GetWeatherSituationParams) => {
+      const _t0 = performance.now();
+      try {
+        debugTools('meteoswissWeatherSituation called with params: %O', params);
+        const result = await getWeatherSituation(params);
+        recordToolCall('meteoswissWeatherSituation', performance.now() - _t0);
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+          structuredContent: result,
+        };
+      } catch (error: unknown) {
+        logToolError('Error in meteoswissWeatherSituation tool', error);
+        recordToolCall('meteoswissWeatherSituation', performance.now() - _t0);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        return {
+          content: [
+            { type: 'text' as const, text: `Failed to get the weather situation: ${errorMessage}` },
           ],
           isError: true,
         };

@@ -90,6 +90,7 @@ See the [meteoswiss-skills README](packages/meteoswiss-skills/README.md) for man
 | Tool | Description |
 |------|-------------|
 | `meteoswissLocalForecast` | Multi-day forecasts by postal code, station, or place name |
+| `meteoswissWeatherSituation` | The weather over Switzerland at one hour, counted per MeteoSwiss forecast region and altitude band (fog, sun above the fog) |
 | `meteoswissCurrentWeather` | Real-time measurements (temperature, wind, humidity, pressure) |
 | `meteoswissStations` | Search station network by name, canton, or coordinates |
 | `meteoswissPollenData` | Pollen concentration data from monitoring stations |

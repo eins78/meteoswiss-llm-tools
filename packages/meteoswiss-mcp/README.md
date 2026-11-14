@@ -67,6 +67,7 @@ Go to **Settings** → **Integrations** → **Add MCP Server** → paste `https:
 | Tool | Description |
 |------|-------------|
 | `meteoswissLocalForecast` | Multi-day forecasts for any Swiss location by postal code, station, or place name |
+| `meteoswissWeatherSituation` | The weather over Switzerland at one hour: weather categories per MeteoSwiss forecast region and altitude band, for area questions such as where it is sunny or how high the fog reaches |
 | `meteoswissCurrentWeather` | Real-time measurements from automatic weather stations (temperature, wind, humidity, pressure) |
 | `meteoswissStations` | Search and browse the MeteoSwiss station network by name, canton, or coordinates |
 | `meteoswissPollenData` | Current pollen concentration data from monitoring stations |
