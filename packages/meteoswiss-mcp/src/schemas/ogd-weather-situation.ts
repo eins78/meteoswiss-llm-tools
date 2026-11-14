@@ -23,7 +23,7 @@ Reading the answer:
 - Times are local Europe/Zurich time with the UTC offset. The symbol of an hour describes the 3 hours that end at that time.
 - "points" counts forecast points, not area: they are dense in towns and the lowlands and sparse in the mountains. A band with few points says little.
 - Per band, "pct" holds the shares in whole percent (they add up to 100) and "dominant" the most frequent category.
-- jura, mittelland and alpennordhang also carry "fog_top_m" (experimental): the top of a fog sea to the nearest 100 m: the 100 m bands that are mostly fog_or_stratus, from the lowest such band (below 1000 m) up, with mostly sun in the 300 m above ("sunny_above_fog_pct"). null means no fog sea with sun above: no fog layer low down, or cloud above it. For a fog question, also read the bands yourself.
+- jura, mittelland and alpennordhang also carry "fog_top_m" (experimental): the top of a fog sea to the nearest 100 m: the 100 m bands that are mostly fog_or_stratus, starting with the region's lowest band (below 1000 m) up, with mostly sun in the 300 m above ("sunny_above_fog_pct"). null means no fog sea with sun above: no fog layer low down, or cloud above it. For a fog question, also read the bands yourself.
 - With map: "grid", "grid.rows" is a coarse map, north at the top: one character per 5 km cell, the most frequent category there ("grid.key"). Use it to say where (west or east, which valleys) rather than how much.
 - The forecast is updated hourly. Further ahead it may have symbols only every few hours; a time the run does not cover is an error that names the hours it has.
 
@@ -125,7 +125,7 @@ export const SituationRegionSchema = z.object({
     .nullable()
     .optional()
     .describe(
-      'Experimental. Top of a fog sea in m, to the nearest 100 m: from the lowest 100 m band that is mostly fog_or_stratus (it must start below 1000 m) up, as long as the bands stay so, with mostly sun above. null when the points show no fog sea with sun above. Only for jura, mittelland and alpennordhang.'
+      'Experimental. Top of a fog sea in m, to the nearest 100 m: starting at the lowest 100 m band of the region, which must be mostly fog_or_stratus (and start below 1000 m), up as long as the bands stay so, with mostly sun above. null when the points show no fog sea with sun above. Only for jura, mittelland and alpennordhang.'
     ),
   sunny_above_fog_pct: z
     .number()

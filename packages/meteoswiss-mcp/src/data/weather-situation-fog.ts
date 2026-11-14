@@ -6,9 +6,9 @@
  * Method:
  * 1. Group the points into 100 m altitude bands; a band counts if it has at
  *    least 5 points (thinner bands are skipped).
- * 2. The fog layer starts at the lowest counting band that is at least 50 %
- *    `fog_or_stratus`, and that band must start below `maxBaseM` (1000 m): a
- *    fog sea lies on the lowlands, cloud on the summits is not one.
+ * 2. The lowest counting band must itself be at least 50 % `fog_or_stratus`,
+ *    and start below `maxBaseM` (1000 m): a fog sea lies on the lowlands, cloud
+ *    on the summits is not one.
  * 3. Walk up while the counting bands stay at least 50 % `fog_or_stratus`; the
  *    fog top is the upper edge of the last such band.
  * 4. At least 60 % of the points in the 300 m above the top (and at least 5 of
@@ -16,17 +16,16 @@
  *    fog top: low cloud with more cloud above, or nothing to see above, is not
  *    a fog sea.
  *
- * Why step 2 does not demand that the lowest band itself is foggy: the first
- * design did, and on the run of 2026-11-11 11 UTC (valid 2026-11-14 10:00) it
- * found no fog top over the Swiss Plateau. There the 300-499 m bands were 17 %
- * and 38 % fog, 500-899 m were 57-81 %, and 77 % of the points in the 300 m
- * above were clear; this rule reads that as a fog sea with its top at 900 m.
- * Below such a base the lowlands can be mostly clear (in that run, 48-65 % of
- * the points below the base, half or more of the region), which may be fog on
- * the higher ground rather than a fog sea; the first design returns null there.
- * Going back to it is a one-line change in the walk: stop unless the layer
- * starts at the lowest counting band. Every threshold is a constant here so a
- * replay against observed fog mornings can tune it.
+ * Why step 2 demands that the lowest band itself is foggy: a looser walk, which
+ * started the layer at the lowest foggy band, found a "fog sea" with its top at
+ * 900 m on the run of 2026-11-11 11 UTC (valid 2026-11-14 10:00), where the
+ * Swiss Plateau's 300-499 m bands were 17 % and 38 % fog, 500-899 m were
+ * 57-81 %, and 77 % of the points above were clear. Below such a base the
+ * lowlands are mostly clear (in that run 48-65 % of the points below the base,
+ * half or more of the region): fog on the higher ground, not a sea. This rule
+ * returns null there. The looser walk is a one-line change: skip a non-foggy
+ * band below the layer instead of stopping. Every threshold is a constant here
+ * so a replay against observed fog mornings can tune it.
  */
 
 import type { WeatherCategory } from '../support/weather-categories.js';
@@ -84,10 +83,8 @@ export function fogTop(
   let topBand: number | null = null;
   let layerPoints = 0;
   for (const [band, tally] of counting) {
-    if (tally.fog / tally.total < minFogShare) {
-      if (topBand !== null) break; // the layer ended
-      continue; // still below the layer's base
-    }
+    // The layer ended, or the lowest counting band is not foggy: no fog sea.
+    if (tally.fog / tally.total < minFogShare) break;
     if (topBand === null && band * bandM >= maxBaseM) break; // a base this high is no fog sea
     topBand = band;
     layerPoints += tally.total;

@@ -53,8 +53,9 @@ describe('fogTop', () => {
     expect(fogTop(fogSea('rain'))).toBeNull();
   });
 
-  it('starts the layer at the lowest foggy band, even with mostly clear bands below it', () => {
+  it('gives no fog top when the lowest band is mostly clear, even with fog above it', () => {
     // Like the Plateau forecast for 14.11.2026 10:00: 300-499 m mostly clear, 500-899 m fog.
+    // That is fog on the higher ground, not a fog sea over the lowlands.
     const samples = [
       ...band(300, 10, 2),
       ...band(400, 10, 4),
@@ -65,13 +66,13 @@ describe('fogTop', () => {
       ...band(900, 10, 2),
       ...band(1000, 10, 0),
     ];
-    expect(fogTop(samples)).toEqual({ topM: 900, clearAbovePct: 90, points: 60 });
+    expect(fogTop(samples)).toBeNull();
   });
 
   it('needs the layer to start below 1000 m', () => {
-    const samples = [...band(600, 10, 0), ...band(1000, 10, 9), ...band(1100, 10, 0)];
+    const samples = [...band(900, 10, 0), ...band(1000, 10, 9), ...band(1100, 10, 0)];
     expect(fogTop(samples)).toBeNull();
-    const lower = [...band(600, 10, 0), ...band(900, 10, 9), ...band(1000, 10, 0)];
+    const lower = [...band(800, 10, 9), ...band(900, 10, 9), ...band(1000, 10, 0)];
     expect(fogTop(lower)?.topM).toBe(1000);
   });
 
