@@ -15,6 +15,24 @@ Get a multi-day weather forecast for any Swiss location.
 
 **Try:** "What's the weather forecast for Zurich this week?" or "Will it rain in Bern tomorrow?"
 
+## meteoswissWeatherSituation
+
+Count the weather over Switzerland at one hour (or a window of up to 12 hours): the hourly weather symbol at all ~5800 forecast points, per MeteoSwiss forecast region and altitude band.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `time` | string | Yes | Hour in local Swiss time ("2026-11-14T10:00") |
+| `until` | string | No | Last hour of a window, at most 12 h after `time` |
+| `region` | string | No | One forecast region, e.g. "mittelland" (default: all seven) |
+| `bbox` / `near` | array / object | No | A WGS84 box, or a radius of at most 150 km around a place |
+| `min_altitude_m` / `max_altitude_m` | number | No | Altitude limits in m |
+| `bands` | number[] | No | Altitude band edges (default: [500, 1000, 1500, 2000]) |
+| `map` | string | No | "grid" adds a coarse 5 km text map (default: "none") |
+
+**Returns:** Per region and band, the share of each weather category (sunny, fog or low stratus, rain, snow, …), plus an experimental fog-top estimate for Jura, Mittelland and Alpennordhang.
+
+**Try:** "Where is it sunny on Saturday morning?" or "How high does the fog reach over the Plateau tomorrow?"
+
 ## meteoswissCurrentWeather
 
 Get real-time measurements from any of ~300 Swiss measurement stations (~160 full weather + ~140 precipitation-only). Updated every 10 minutes.

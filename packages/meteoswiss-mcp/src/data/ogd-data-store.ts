@@ -92,8 +92,11 @@ function resolveFixturePath(url: string): string | null {
 /**
  * Parse an env var as a number, returning the default if unset.
  * Respects explicit zero (unlike `Number(x) || default` which treats 0 as falsy).
+ *
+ * @param name - Environment variable name
+ * @param fallback - Value when the variable is unset or not a number
  */
-function envNumber(name: string, fallback: number): number {
+export function envNumber(name: string, fallback: number): number {
   const raw = process.env[name];
   if (raw == null) return fallback;
   const parsed = Number(raw);
@@ -124,6 +127,18 @@ const DIR_REAP_MIN_AGE_MS = envNumber('OGD_CACHE_DIR_REAP_MIN_AGE_MS', 60_000);
 
 /** Total-bytes ceiling for the on-disk cache before LRU eviction kicks in. */
 const CACHE_MAX_BYTES = envNumber('OGD_CACHE_MAX_BYTES', 536_870_912); // 512 MiB
+
+/**
+ * Cache subdirectory the prune never evicts from, and does not count toward
+ * {@link CACHE_MAX_BYTES}.
+ *
+ * For small, bounded sets with a long TTL (the forecast regions: seven files,
+ * under 1 MB, 30 days). Eviction goes by write age, so without this the forecast
+ * churn, which passes the byte ceiling within hours, would evict exactly these
+ * files first and the server would download them again every few hours. Its
+ * owner keeps it bounded and replaces files in place.
+ */
+export const PINNED_CACHE_DIR = 'pinned';
 
 /**
  * Resolve a cache key to an absolute path and assert it stays under CACHE_DIR.
@@ -221,7 +236,7 @@ async function writeToDiskCache(cachePath: string, data: string | Buffer): Promi
  * @param data - Payload to persist
  * @param cacheKey - Human-readable key, for the log line only
  */
-async function cacheWriteBestEffort(
+export async function cacheWriteBestEffort(
   cachePath: string,
   data: string,
   cacheKey: string
@@ -340,7 +355,10 @@ async function pruneDiskCache(): Promise<void> {
   if (prunePromise) return prunePromise;
   prunePromise = (async () => {
     try {
-      const files = await listCacheFiles(CACHE_DIR);
+      const pinned = path.join(path.resolve(CACHE_DIR), PINNED_CACHE_DIR) + path.sep;
+      const files = (await listCacheFiles(CACHE_DIR)).filter(
+        (file) => !path.resolve(file.path).startsWith(pinned)
+      );
       let totalBytes = files.reduce((sum, file) => sum + file.size, 0);
 
       if (totalBytes > CACHE_MAX_BYTES) {

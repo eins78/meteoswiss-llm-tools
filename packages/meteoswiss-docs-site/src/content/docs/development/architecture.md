@@ -22,7 +22,7 @@ Built with the MCP TypeScript SDK (`McpServer`), Express, Zod 4, and Streamable 
 | Path | Role |
 |------|------|
 | `src/index.ts` | Entry point: validates the environment, starts the HTTP server |
-| `src/server.ts` | Creates one `McpServer` per session and registers the seven tools and three prompts |
+| `src/server.ts` | Creates one `McpServer` per session and registers the eight tools and three prompts |
 | `src/transports/streamable-http.ts` | Express app: `/mcp`, `/health`, `/metrics`, `/`; CORS, rate limiting, session handling |
 | `src/tools/` | `search` and `fetch` (MeteoSwiss website) |
 | `src/data/` | OGD clients and caches: STAC client, CSV store, station and location resolvers, forecast index |

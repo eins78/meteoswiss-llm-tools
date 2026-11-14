@@ -33,7 +33,7 @@ exports[`ChatGPT Deep Research compatibility > manifest snapshot > matches the c
     "name": "fetch",
   },
   "search": {
-    "description": "Search MeteoSwiss website content in multiple languages (DE, FR, IT, EN). Returns relevant pages with URLs that can be passed to the fetch tool. Always returns up to 10 results per page — the upstream API has a fixed page size that cannot be changed. Note: pagination may return duplicate results across pages (upstream API limitation).",
+    "description": "Search MeteoSwiss website content in multiple languages (DE, FR, IT, EN). Returns relevant pages with URLs that can be passed to the fetch tool. The pages hold articles and explanations, not forecast or measurement data: for a forecast use meteoswissLocalForecast (one place) or meteoswissWeatherSituation (all of Switzerland, e.g. where it is sunny or foggy). Always returns up to 10 results per page — the upstream API has a fixed page size that cannot be changed. Note: pagination may return duplicate results across pages (upstream API limitation).",
     "inputSchema": {
       "properties": {
         "contentType": {

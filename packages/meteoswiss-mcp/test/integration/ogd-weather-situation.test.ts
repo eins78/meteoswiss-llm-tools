@@ -1,0 +1,120 @@
+import { describe, expect, it, beforeAll, afterAll } from 'vitest';
+import { MCPClient } from './mcp-client.js';
+
+/**
+ * End to end through the built server: the tool is listed, and its answer passes the
+ * SDK's output-schema check (an answer that does not match `outputSchema` fails here,
+ * not in the unit tests). Fixture scenario: test/__fixtures__/ogd/forecasts/README.md.
+ */
+describe('meteoswissWeatherSituation Tool', () => {
+  let client: MCPClient;
+
+  beforeAll(async () => {
+    process.env.USE_TEST_FIXTURES = 'true';
+    client = new MCPClient();
+    await client.start();
+  });
+
+  afterAll(async () => {
+    await client.stop();
+  });
+
+  it('is listed with its inputs, the regions and the nearest-region note', async () => {
+    const tools = await client.listTools();
+    const tool = tools.find((t) => t.name === 'meteoswissWeatherSituation');
+    expect(tool).toBeDefined();
+    expect(Object.keys(tool?.inputSchema?.properties ?? {})).toEqual([
+      'time',
+      'until',
+      'region',
+      'bbox',
+      'near',
+      'min_altitude_m',
+      'max_altitude_m',
+      'bands',
+      'map',
+    ]);
+    expect(tool?.inputSchema?.required).toEqual(['time']);
+    expect(tool?.outputSchema).toBeDefined();
+    expect(tool?.description).toContain(
+      "Points outside MeteoSwiss's seven regions are counted in the nearest one."
+    );
+    expect(tool?.description).toContain('Source: MeteoSwiss');
+  });
+
+  it('returns region and band counts as structured content', async () => {
+    const result = await client.callTool('meteoswissWeatherSituation', {
+      time: '2026-03-28T09:00',
+    });
+    expect(result.isError).toBeFalsy();
+    const data = JSON.parse(result.content[0].text);
+    expect(result.structuredContent).toEqual(data);
+    expect(data.valid).toEqual({ from: '2026-03-28T09:00:00+01:00', hours: 1 });
+    expect(data.points).toBe(33);
+    expect(data.regions).toHaveLength(7);
+    const mittelland = data.regions.find((r: { id: string }) => r.id === 'mittelland');
+    expect(mittelland.bands[0]).toEqual({
+      band: '<500',
+      points: 5,
+      pct: { fog_or_stratus: 100 },
+      dominant: 'fog_or_stratus',
+    });
+    expect(data.legend.fog_or_stratus).toMatch(/low cloud >= 80 %/);
+    // Too few fixture points per 100 m band for a fog top; the field is there, as null.
+    expect(mittelland.fog_top_m).toBeNull();
+    expect('fog_top_m' in data.regions.find((r: { id: string }) => r.id === 'wallis')).toBe(false);
+  });
+
+  it('returns a readable error for an hour the run does not cover', async () => {
+    const result = await client.callTool('meteoswissWeatherSituation', {
+      time: '2026-04-05T10:00',
+    });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/outside the forecast run/);
+  });
+
+  it('takes a window and area filters', async () => {
+    const result = await client.callTool('meteoswissWeatherSituation', {
+      time: '2026-03-28T08:00',
+      until: '2026-03-28T12:00',
+      near: { lat: 47.372289, lon: 8.542189, radius_km: 40 },
+      min_altitude_m: 300,
+    });
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent.valid).toEqual({
+      from: '2026-03-28T08:00:00+01:00',
+      until: '2026-03-28T12:00:00+01:00',
+      hours: 5,
+    });
+    expect(result.structuredContent.points).toBe(3);
+  });
+
+  it('adds the map grid on request', async () => {
+    const result = await client.callTool('meteoswissWeatherSituation', {
+      time: '2026-03-28T09:00',
+      map: 'grid',
+    });
+    expect(result.isError).toBeFalsy();
+    const grid = result.structuredContent.grid;
+    expect(grid.crs).toBe('EPSG:2056');
+    expect(grid.cell_m).toBe(5000);
+    expect(new Set(grid.rows.map((r: string) => r.length)).size).toBe(1);
+    expect(grid.rows.join('')).toMatch(/^[SNPCHFRLWT.]+$/);
+  });
+
+  it('rejects a radius over 150 km', async () => {
+    const result = await client.callTool('meteoswissWeatherSituation', {
+      time: '2026-03-28T09:00',
+      near: { lat: 47.37, lon: 8.54, radius_km: 200 },
+    });
+    expect(result.isError).toBe(true);
+  });
+
+  it('rejects an unknown region id', async () => {
+    const result = await client.callTool('meteoswissWeatherSituation', {
+      time: '2026-03-28T09:00',
+      region: 'tessin',
+    });
+    expect(result.isError).toBe(true);
+  });
+});

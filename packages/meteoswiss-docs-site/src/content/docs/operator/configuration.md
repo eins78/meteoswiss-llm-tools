@@ -41,12 +41,24 @@ fetched data is still returned.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `OGD_CACHE_DIR` | `<os tmpdir>/meteoswiss-ogd` | Directory for cached files. Mount a volume here to keep the cache across restarts |
-| `OGD_CACHE_MAX_BYTES` | `536870912` | Size bound (512 MiB); oldest files are pruned beyond it |
+| `OGD_CACHE_MAX_BYTES` | `536870912` | Size bound (512 MiB); oldest files are pruned beyond it. The `pinned/` subdirectory (the forecast regions, under 1 MB) is never pruned and does not count |
 | `OGD_CACHE_TTL_REALTIME` | `60000` | Current weather and pollen readings (ms) |
 | `OGD_CACHE_TTL_FORECAST` | `3600000` | Forecast data, 1 hour (ms) |
 | `OGD_CACHE_TTL_METADATA` | `86400000` | Station and forecast-point lists, 24 hours (ms) |
 | `OGD_CACHE_TTL_CLIMATE` | `604800000` | Climate series, 7 days (ms) |
 | `OGD_CACHE_DIR_REAP_MIN_AGE_MS` | `60000` | How long an empty cache directory must be idle before it is removed |
+
+## Forecast regions
+
+MeteoSwiss's forecast regions (Jura, Mittelland, Alpennordhang, Wallis, Engadin, Nord- und Mittelbünden,
+Alpensüdseite) are not Open Data. The server downloads the seven GeoJSON files the MeteoSwiss website's
+"Forecast regions" map uses, on first use, and keeps them in `<OGD_CACHE_DIR>/pinned/forecast-regions/`. If a
+refresh fails, the previous files stay in use and the next attempt waits an hour. Source: MeteoSwiss.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `FORECAST_REGIONS_BASE_URL` | `https://www.meteoswiss.admin.ch/static/resources/forecast-regions/` | Where `<region>.geojson` is downloaded from (a mirror, or a test server) |
+| `FORECAST_REGIONS_CACHE_TTL` | `2592000000` | How long the files are used before they are downloaded again, 30 days (ms); never less than 1 hour |
 
 ## Forecast parsing
 

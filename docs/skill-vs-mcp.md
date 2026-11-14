@@ -40,7 +40,7 @@ Requirements: an agent with shell access, plus `curl`, `awk`, `iconv` (and `jq` 
 
 ### The MCP server: ~6.6k lines of TypeScript
 
-[`packages/meteoswiss-mcp`](../packages/meteoswiss-mcp/) is a Streamable-HTTP MCP server (49 source files) exposing seven tools — `meteoswissLocalForecast`, `meteoswissCurrentWeather`, `meteoswissStations`, `meteoswissPollenData`, `meteoswissClimateData`, `search`, `fetch` — plus four preconfigured prompts (DE/FR/IT).
+[`packages/meteoswiss-mcp`](../packages/meteoswiss-mcp/) is a Streamable-HTTP MCP server (49 source files) exposing eight tools — `meteoswissLocalForecast`, `meteoswissWeatherSituation`, `meteoswissCurrentWeather`, `meteoswissStations`, `meteoswissPollenData`, `meteoswissClimateData`, `search`, `fetch` — plus four preconfigured prompts (DE/FR/IT).
 
 The same domain knowledge is encoded as infrastructure:
 
@@ -57,6 +57,7 @@ Requirements: Node.js 22+ or Docker to self-host — or nothing at all, using th
 | Capability | Skill | MCP server |
 |---|---|---|
 | Multi-day local forecast | ✅ recipe + `forecast.sh` | ✅ `meteoswissLocalForecast` |
+| Weather situation across Switzerland | ✅ recipe (one awk count over all points); no forecast regions, as they are not Open Data | ✅ `meteoswissWeatherSituation`, per forecast region |
 | Current weather (10-min updates) | ✅ recipe + `current-weather.sh` | ✅ `meteoswissCurrentWeather` |
 | Weather-station search | ✅ recipe + `search-stations.sh` | ✅ `meteoswissStations` |
 | Forecast-point search (~6000 points) | ✅ recipe + `search-forecast-points.sh` | ✅ built into forecast location resolution |

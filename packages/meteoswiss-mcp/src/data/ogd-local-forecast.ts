@@ -22,6 +22,7 @@ import { debugData } from '../support/logging.js';
 import { logSafe } from '../support/log-safe.js';
 import { OGD_COLLECTIONS, pointTypeFromId, SOURCE_ATTRIBUTION } from '../schemas/ogd-shared.js';
 import { weatherIconDescription, weatherIconUrl } from '../support/weather-icons.js';
+import { zurichParts, zurichPartsOfDate } from '../support/zurich-time.js';
 import type {
   GetLocalForecastParams,
   LocalForecastResponse,
@@ -119,43 +120,6 @@ function timestampToDate(ts: string): string {
 }
 
 /**
- * Formatter that renders a UTC instant as local Europe/Zurich wall-clock time
- * plus its UTC offset (DST-aware). Reused across calls since constructing an
- * `Intl.DateTimeFormat` repeatedly is comparatively expensive.
- */
-const zurichFormatter = new Intl.DateTimeFormat('en-US', {
-  timeZone: 'Europe/Zurich',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-  hourCycle: 'h23',
-  timeZoneName: 'longOffset',
-});
-
-/**
- * Render a UTC timestamp's local Europe/Zurich date and wall-clock time, DST-correct.
- */
-function zurichParts(ts: string): { date: string; time: string; offset: string } {
-  const utcMs = Date.UTC(
-    Number(ts.slice(0, 4)),
-    Number(ts.slice(4, 6)) - 1,
-    Number(ts.slice(6, 8)),
-    Number(ts.slice(8, 10)),
-    Number(ts.slice(10, 12))
-  );
-  const parts = zurichFormatter.formatToParts(new Date(utcMs));
-  const get = (type: string): string => parts.find((p) => p.type === type)?.value ?? '';
-  return {
-    date: `${get('year')}-${get('month')}-${get('day')}`,
-    time: `${get('hour')}:${get('minute')}:${get('second')}`,
-    offset: get('timeZoneName').replace('GMT', ''),
-  };
-}
-
-/**
  * Convert a MeteoSwiss UTC timestamp (YYYYMMDDhhmm) to its local Europe/Zurich
  * calendar date (YYYY-MM-DD), DST-correct. Used to bucket hourly readings into
  * days that match the local wall-clock times we surface, so a day's `hourly`
@@ -178,9 +142,7 @@ function todayZurich(): string {
     // Don't filter dates in test mode — fixture dates are static
     return '1900-01-01';
   }
-  const parts = zurichFormatter.formatToParts(new Date());
-  const get = (type: string): string => parts.find((p) => p.type === type)?.value ?? '';
-  return `${get('year')}-${get('month')}-${get('day')}`;
+  return zurichPartsOfDate(new Date()).date;
 }
 
 /**

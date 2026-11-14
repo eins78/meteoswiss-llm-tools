@@ -80,6 +80,16 @@ async function loadForecastIndex(): Promise<ForecastIndex> {
   return indexCache;
 }
 
+/**
+ * All forecast points of the OGD local forecast (~5800 stations, postal code
+ * centres and points of interest), loaded once and cached like the resolver's index.
+ *
+ * @returns The points; the same array on every call until the cache is cleared
+ */
+export async function getForecastPoints(): Promise<ForecastPoint[]> {
+  return (await loadForecastIndex()).points;
+}
+
 /** Result of a station/location resolution */
 export type ResolveResult = {
   match: ForecastPoint;
