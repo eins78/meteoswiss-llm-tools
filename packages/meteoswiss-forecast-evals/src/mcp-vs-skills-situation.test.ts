@@ -11,6 +11,8 @@ import {
   type GroundTruthContext,
 } from "./mcp-vs-skills/questions.js";
 import {
+  bestAreaExpected,
+  upHillExpected,
   parseSituationRegions,
   shareOf,
   situationArgs,
@@ -77,6 +79,8 @@ function contextWith(regions: SituationRegion[]): GroundTruthContext {
       ["sunny-high", capture],
       ["fog-plateau", capture],
       ["wet-side", capture],
+      ["best-weather", capture],
+      ["uphill-north", capture],
     ]),
     pollen: new Map(),
     climateZurichMonthly: new Map(),
@@ -208,12 +212,63 @@ test("sunny question counts only the sunny category over all regions", () => {
   });
 });
 
-test("the question set has 15 unique ids, three of them situation questions", () => {
+test("bestAreaExpected names the sunniest area, or two when they are close", () => {
+  const regions = [
+    region("jura", 100, { fog_or_stratus: 90, sunny: 10 }),
+    region("wallis", 100, { sunny: 70, partly_sunny: 10 }),
+    region("engadin", 50, { sunny: 20 }),
+    region("alpensuedseite", 100, { rain: 80 }),
+  ];
+  assert.deepEqual(bestAreaExpected(regions).fields, {
+    best_area: { kind: "oneof", accepted: ["wallis"] },
+  });
+  const close = [
+    region("mittelland", 100, { sunny: 70 }),
+    region("wallis", 100, { sunny: 75 }),
+    region("alpensuedseite", 100, { rain: 80 }),
+    region("engadin", 100, { cloudy: 90 }),
+  ];
+  assert.deepEqual(bestAreaExpected(close).fields, {
+    best_area: { kind: "oneof", accepted: ["wallis", "north"] },
+  });
+});
+
+test("upHillExpected: fog below and sun above says go up; a small gap is not graded", () => {
+  const plateau = [
+    region("mittelland", 100, { fog_or_stratus: 80, sunny: 20 }),
+  ];
+  const hills = [
+    region("jura", 50, { sunny: 70, partly_sunny: 10 }),
+    region("wallis", 500, { sunny: 100 }), // not north of the Alps: ignored
+  ];
+  assert.deepEqual(upHillExpected(plateau, hills).fields, {
+    go_up: { kind: "boolean", value: true },
+  });
+  assert.deepEqual(
+    upHillExpected(hills.slice(0, 1), [
+      region("jura", 50, { sunny: 40 }),
+      region("alpennordhang", 50, { sunny: 20 }),
+    ]).fields,
+    { go_up: { kind: "boolean", value: false } },
+  );
+  assert.deepEqual(
+    upHillExpected(plateau, [region("jura", 50, { sunny: 30 })]).fields,
+    { go_up: { kind: "any" } },
+  );
+});
+
+test("the question set has 17 unique ids, five of them situation questions", () => {
   const ids = QUESTIONS.map((q) => q.id);
-  assert.equal(ids.length, 15);
-  assert.equal(new Set(ids).size, 15);
+  assert.equal(ids.length, 17);
+  assert.equal(new Set(ids).size, 17);
   assert.deepEqual(
     QUESTIONS.filter((q) => q.family === "situation").map((q) => q.id),
-    ["situation-sunny-high", "situation-fog-plateau", "situation-wet-side"],
+    [
+      "situation-sunny-high",
+      "situation-fog-plateau",
+      "situation-wet-side",
+      "situation-best-weather",
+      "situation-out-of-fog",
+    ],
   );
 });

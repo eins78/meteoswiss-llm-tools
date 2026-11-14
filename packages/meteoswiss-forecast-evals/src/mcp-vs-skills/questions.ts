@@ -1,7 +1,7 @@
 /**
- * The MCP-vs-skills question set: 15 real-world Swiss weather questions covering the
+ * The MCP-vs-skills question set: 17 real-world Swiss weather questions covering the
  * MCP server's whole tool surface (current weather, forecasts, the weather situation
- * across the country, pollen, stations, climate). The 3 situation questions live in
+ * across the country, pollen, stations, climate). The 5 situation questions live in
  * situation-questions.ts. Every expected answer is COMPUTED from live data captured by
  * capture-ground-truth.ts — never hand-typed (suite rule).
  *

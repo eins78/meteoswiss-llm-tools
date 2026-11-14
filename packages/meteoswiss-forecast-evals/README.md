@@ -108,7 +108,7 @@ fairness rules and the budget guard (hard abort at `MCP_SKILLS_BUDGET_USD`, defa
 
 ```bash
 pnpm run mcp-skills:smoke      # 1 model x both methods x 3 questions (~$0.05)
-pnpm run mcp-skills:eval       # full sweep: 2 models x 2 methods x 15 questions (~$0.80; 12 questions cost ~$0.65)
+pnpm run mcp-skills:eval       # full sweep: 2 models x 2 methods x 17 questions (~$0.90; 12 questions cost ~$0.65)
 pnpm run mcp-skills:summarize  # accuracy/token/cost tables from the last run
 pnpm run mcp-skills:charts     # SVG charts into docs/results/<date>-mcp-vs-skills/
 ```
