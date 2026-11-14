@@ -1,5 +1,11 @@
 # meteoswiss-skills
 
+## 1.1.2 - 2026-11-14
+
+### Patch Changes
+
+- de00071: The skill has a new section on the weather across Switzerland at one hour: count the weather symbol of all forecast points by altitude band from one forecast file, and spot a low cloud deck with the cloud cover files.
+
 ## 1.1.1 - 2026-11-13
 
 ### Patch Changes
