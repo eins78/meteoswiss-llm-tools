@@ -44,6 +44,15 @@ describe('buildGrid', () => {
     expect(cell(['snow', 'thunder', 'snow'])).toBe('W');
   });
 
+  it('lists "." in the key only when a cell is empty', () => {
+    const full = buildGrid([
+      at(2_600_100, 1_200_100, 'sunny'),
+      at(2_605_100, 1_200_100, 'rain'),
+    ]);
+    expect(full?.rows).toEqual(['SR']);
+    expect(full?.key).toEqual({ S: 'sunny', R: 'rain' });
+  });
+
   it('returns null without samples', () => {
     expect(buildGrid([])).toBeNull();
   });

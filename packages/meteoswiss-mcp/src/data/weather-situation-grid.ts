@@ -109,7 +109,7 @@ export function buildGrid(samples: Iterable<GridSample>): SituationGrid | null {
   for (const category of WEATHER_CATEGORIES) {
     if (used.has(category)) key[GRID_SYMBOLS[category]] = category;
   }
-  key[GRID_EMPTY] = 'no forecast point';
+  if (rows.some((row) => row.includes(GRID_EMPTY))) key[GRID_EMPTY] = 'no forecast point';
   return {
     crs: 'EPSG:2056',
     cell_m: GRID_CELL_M,
