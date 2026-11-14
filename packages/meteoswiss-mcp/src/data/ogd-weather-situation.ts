@@ -168,11 +168,13 @@ export async function getWeatherSituation(
     Math.round(performance.now() - started)
   );
 
-  const last = wanted.at(-1);
+  // The first and last hour that were counted, not the endpoints asked for (the run may skip hours).
+  const first = hours[0];
+  const last = hours.at(-1);
   const grid = gridSamples ? buildGrid(gridSamples) : null;
   return {
     valid: {
-      from: zurichIso(fromTs),
+      from: zurichIso(first ?? fromTs),
       ...(untilTs !== undefined && last !== undefined ? { until: zurichIso(last) } : {}),
       hours: hours.length,
     },

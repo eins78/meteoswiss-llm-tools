@@ -71,6 +71,21 @@ describe('getWeatherSituation window', () => {
     ]);
   });
 
+  it('reports the first and last hour it counted, not the endpoints asked for', async () => {
+    // 01:00-04:00 CEST = 23-02 UTC; of these the fixture has only 00 UTC (02:00 CEST).
+    const result = await getWeatherSituation({
+      time: '2026-03-30T01:00',
+      until: '2026-03-30T04:00',
+      bands: [],
+    });
+    expect(result.valid).toEqual({
+      from: '2026-03-30T02:00:00+02:00',
+      until: '2026-03-30T02:00:00+02:00',
+      hours: 1,
+    });
+    expect(result.warnings?.[0]).toMatch(/1 of the 4 hours/);
+  });
+
   it('rejects a window longer than 12 hours or ending before it starts', async () => {
     await expect(
       getWeatherSituation({ time: '2026-03-28T08:00', until: '2026-03-28T21:00', bands: [] })

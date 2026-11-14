@@ -1335,7 +1335,7 @@
                 "description": "First counted hour in local Europe/Zurich time with offset, e.g. \"2026-11-14T10:00:00+01:00\""
               },
               "until": {
-                "description": "Last hour of the window, same format; present only when until was given",
+                "description": "Last counted hour of the window, same format (the run may lack the hour asked for); present only when until was given",
                 "type": "string"
               },
               "hours": {

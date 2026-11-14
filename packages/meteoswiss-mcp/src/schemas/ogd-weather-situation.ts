@@ -155,7 +155,9 @@ export const WeatherSituationResponseSchema = z.object({
     until: z
       .string()
       .optional()
-      .describe('Last hour of the window, same format; present only when until was given'),
+      .describe(
+        'Last counted hour of the window, same format (the run may lack the hour asked for); present only when until was given'
+      ),
     hours: z.number().int().describe('Number of hours counted'),
   }),
   run: z.string().describe('The forecast run the counts come from, local time with offset'),
