@@ -15,7 +15,7 @@ export const WEATHER_SITUATION_DESCRIPTION = `Count the weather over Switzerland
 
 Regions are MeteoSwiss's seven forecast regions: jura, mittelland (Swiss Plateau), alpennordhang (northern Alps and Prealps), wallis (Valais), engadin, nordundmittelbuenden (northern and central Grisons), alpensuedseite (southern side of the Alps: Ticino and the southern valleys of Grisons). Points outside MeteoSwiss's seven regions are counted in the nearest one.
 
-Narrow the count with region, bbox (a WGS84 box), near (air distance around a place, at most 150 km) and min_altitude_m / max_altitude_m; given together, a point must pass all of them. With until, the count covers every hour of a window of up to 12 hours.
+Narrow the count with region, bbox (a WGS84 box), near (air distance around a place, at most 150 km) and min_altitude_m / max_altitude_m; given together, a point must pass all of them. With until, the count covers every hour from time to until, at most 12 hours after time (up to 13 hourly steps).
 
 Categories: sunny, clear_night, partly_sunny, cloudy, high_cloud, fog_or_stratus, rain, sleet, snow, thunder; the answer's "legend" gives the symbol codes of each. fog_or_stratus also counts an overcast or partly sunny hour under a low cloud deck (low cloud >= 80 %, medium and high cloud < 50 %): MeteoSwiss's symbol often shows such a deck as "overcast".
 
@@ -23,7 +23,7 @@ Reading the answer:
 - Times are local Europe/Zurich time with the UTC offset. The symbol of an hour describes the 3 hours that end at that time.
 - "points" counts forecast points, not area: they are dense in towns and the lowlands and sparse in the mountains. A band with few points says little.
 - Per band, "pct" holds the shares in whole percent (they add up to 100) and "dominant" the most frequent category.
-- jura, mittelland and alpennordhang also carry "fog_top_m" (experimental): the top of a fog sea to the nearest 100 m: the 100 m bands that are mostly fog_or_stratus, starting with the region's lowest band (below 1000 m) up, with mostly sun in the 300 m above ("sunny_above_fog_pct"). null means no fog sea with sun above: no fog layer low down, or cloud above it. For a fog question, also read the bands yourself.
+- jura, mittelland and alpennordhang also carry "fog_top_m" (experimental): the top of a fog sea to the nearest 100 m: the 100 m bands that are mostly fog_or_stratus, starting with the region's lowest band (below 1000 m) up, with mostly sun in the 300 m above ("sunny_above_fog_pct"). null means no fog sea with sun above: no fog layer low down, or cloud above it. Over a window (until) all point-hours are pooled into one estimate for the whole window. For a fog question, also read the bands yourself.
 - With map: "grid", "grid.rows" is a coarse map, north at the top: one character per 5 km cell, the most frequent category there ("grid.key"). Use it to say where (west or east, which valleys) rather than how much.
 - The forecast is updated hourly. Further ahead it may have symbols only every few hours; a time the run does not cover is an error that names the hours it has.
 
@@ -125,7 +125,7 @@ export const SituationRegionSchema = z.object({
     .nullable()
     .optional()
     .describe(
-      'Experimental. Top of a fog sea in m, to the nearest 100 m: starting at the lowest 100 m band of the region, which must be mostly fog_or_stratus (and start below 1000 m), up as long as the bands stay so, with mostly sun above. null when the points show no fog sea with sun above. Only for jura, mittelland and alpennordhang.'
+      'Experimental. Top of a fog sea in m, to the nearest 100 m: starting at the lowest 100 m band of the region, which must be mostly fog_or_stratus (and start below 1000 m), up as long as the bands stay so, with mostly sun above. null when the points show no fog sea with sun above. Over a window (until) all point-hours of the window are pooled into one count, so the value is one estimate for the whole window, not one per hour: ask for single hours to see it change. Only for jura, mittelland and alpennordhang.'
     ),
   sunny_above_fog_pct: z
     .number()
@@ -133,7 +133,7 @@ export const SituationRegionSchema = z.object({
     .nullable()
     .optional()
     .describe(
-      'Experimental. Share of the points in the 300 m above fog_top_m that are sunny, partly sunny or a clear night, in whole percent; null without a fog top'
+      'Experimental. Share of the points in the 300 m above fog_top_m that are sunny, partly sunny or a clear night, in whole percent; null without a fog top. Over a window it is the share of the pooled point-hours of the whole window'
     ),
   fog_top_points: z
     .number()
