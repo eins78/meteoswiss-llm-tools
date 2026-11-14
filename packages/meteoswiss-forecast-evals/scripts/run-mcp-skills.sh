@@ -46,7 +46,8 @@ if ! curl -sf "$HEALTH_URL" >/dev/null 2>&1; then
     echo "error: cannot extract a port from MCP_SKILLS_MCP_URL='$MCP_URL' — start the server yourself or use an explicit-port URL." >&2
     exit 1
   fi
-  (cd ../meteoswiss-mcp && PORT="$PORT" exec npx tsx src/index.ts) &
+  # The eval opens one MCP session per test row and never closes it; the default limit (10 per client) would answer 429.
+  (cd ../meteoswiss-mcp && PORT="$PORT" MAX_SESSIONS_PER_CLIENT=200 exec npx tsx src/index.ts) &
   SERVER_PID=$!
   for _ in $(seq 1 30); do
     if curl -sf "$HEALTH_URL" >/dev/null 2>&1; then break; fi
