@@ -153,7 +153,8 @@ export function wetSideExpected(regions: readonly SituationRegion[]): Expected {
   };
 }
 
-const GOOD = ["sunny", "partly_sunny"];
+/** The questions' "sunny or mostly sunny" is the tool's `sunny` category (symbols 1 and 2); "partly sunny" (symbol 3) is not in it. */
+const GOOD = ["sunny"];
 const AREAS: Record<string, string[]> = {
   north: NORTH,
   wallis: ["wallis"],
