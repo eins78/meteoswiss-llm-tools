@@ -296,7 +296,8 @@ cloud_mid_pct and cloud_high_pct; use it for fog, stratus or low cloud questions
         const result = await getWeatherSituation(params);
         recordToolCall('meteoswissWeatherSituation', performance.now() - _t0);
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+          // Compact: the answer is large, and indenting doubles its size (structuredContent has the same data).
+          content: [{ type: 'text' as const, text: JSON.stringify(result) }],
           structuredContent: result,
         };
       } catch (error: unknown) {

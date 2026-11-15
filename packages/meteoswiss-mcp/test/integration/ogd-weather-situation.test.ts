@@ -49,6 +49,7 @@ describe('meteoswissWeatherSituation Tool', () => {
     expect(result.isError).toBeFalsy();
     const data = JSON.parse(result.content[0].text);
     expect(result.structuredContent).toEqual(data);
+    expect(result.content[0].text).not.toContain('\n'); // compact JSON, not indented
     expect(data.valid).toEqual({ from: '2026-03-28T09:00:00+01:00', hours: 1 });
     expect(data.points).toBe(33);
     expect(data.regions).toHaveLength(7);
