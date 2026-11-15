@@ -110,6 +110,15 @@ describe('meteoswissWeatherSituation Tool', () => {
     expect(result.isError).toBe(true);
   });
 
+  it('rejects a misspelled parameter instead of dropping it', async () => {
+    const result = await client.callTool('meteoswissWeatherSituation', {
+      time: '2026-03-28T09:00',
+      min_altitude: 1500,
+    });
+    expect(result.isError).toBe(true);
+    expect(JSON.stringify(result.content)).toContain('min_altitude');
+  });
+
   it('rejects an unknown region id', async () => {
     const result = await client.callTool('meteoswissWeatherSituation', {
       time: '2026-03-28T09:00',

@@ -285,7 +285,8 @@ cloud_mid_pct and cloud_high_pct; use it for fog, stratus or low cloud questions
     'meteoswissWeatherSituation',
     {
       description: WEATHER_SITUATION_DESCRIPTION,
-      inputSchema: GetWeatherSituationParamsSchema.shape,
+      // Strict: a misspelled filter (min_altitude for min_altitude_m) must fail, not return an unfiltered count.
+      inputSchema: GetWeatherSituationParamsSchema.strict(),
       outputSchema: WeatherSituationResponseSchema.shape,
     },
     async (params: GetWeatherSituationParams) => {
