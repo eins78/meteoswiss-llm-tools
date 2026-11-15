@@ -183,7 +183,9 @@ export function missingHoursWarning(
   if (before > 0) reasons.push(`${before} before the run's first hour (${zurichIso(first)})`);
   if (after > 0) reasons.push(`${after} after the run's last hour (${zurichIso(last)})`);
   if (between > 0) {
-    reasons.push(`${between} between steps (further ahead the run has values only every few hours)`);
+    reasons.push(
+      `${between} between steps (further ahead the run has values only every few hours)`
+    );
   }
   return `The forecast run has symbols for ${counted.length} of the ${wanted.length} hours asked for; missing: ${reasons.join(', ')}. The counts use those ${counted.length}.`;
 }
