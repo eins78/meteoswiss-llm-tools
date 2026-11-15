@@ -117,6 +117,11 @@ The runner starts the MCP server itself if none is listening (and reads the Open
 key from the env, `.env`, or the macOS keychain item `openrouter-evals`). Results are
 only comparable within one run — live data moves — so rows are never cached.
 
+The MCP arm advertises the server's tools, not its `instructions` (the recipes in the
+initialize result). A real client puts those into the model's context; set
+`MCP_SKILLS_INSTRUCTIONS=true` to inject them the same way (a block "MCP Server
+Instructions" in the system prompt), to compare a run with and without.
+
 ## The hourly symbol track (PR #183)
 
 `src/symbol-cloud.ts` measures the five hourly fields PR #183 adds (`weather_code`, `weather`,

@@ -27,6 +27,7 @@ import {
 } from "./provider-common.js";
 
 const MCP_URL = process.env.MCP_SKILLS_MCP_URL ?? "http://localhost:3105/mcp";
+const USE_INSTRUCTIONS = process.env.MCP_SKILLS_INSTRUCTIONS === "true";
 
 export default class McpMethodProvider {
   private readonly options: ProviderOptions;
@@ -58,9 +59,21 @@ export default class McpMethodProvider {
         },
       }));
 
+      // A client puts the server's `instructions` (the initialize result) into the model's
+      // context, as Claude Code does under "MCP Server Instructions". The harness did not:
+      // MCP_SKILLS_INSTRUCTIONS=true injects them the same way, so a run can be compared
+      // with and without. Off by default, so earlier numbers stay comparable.
+      const serverInstructions = client.getInstructions();
+      const withInstructions =
+        USE_INSTRUCTIONS &&
+        serverInstructions !== undefined &&
+        serverInstructions !== ""
+          ? `\n\nMCP Server Instructions (meteoswiss-mcp):\n${serverInstructions}`
+          : "";
+
       const result = await runAgentLoop({
         model: this.modelConfig.model,
-        systemPrompt: `${commonSystemPrompt()}\nYou have MeteoSwiss weather tools available (MCP).`,
+        systemPrompt: `${commonSystemPrompt()}\nYou have MeteoSwiss weather tools available (MCP).${withInstructions}`,
         userMessage: prompt,
         tools,
         maxTokens: this.modelConfig.maxTokens,
