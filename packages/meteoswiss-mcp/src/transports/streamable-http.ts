@@ -35,10 +35,8 @@ interface StreamableHttpOptions {
 }
 
 /**
- * Tool names advertised on the informational `/` endpoint. Kept as a single
- * source so the two JSON responses (HTML-fallback and API) cannot drift, and so
- * a newly registered tool (e.g. meteoswissClimateData, previously omitted here)
- * is easy to add in one place. Mirrors the tools registered in server.ts.
+ * Prompt names advertised on the informational `/` endpoint. Mirrors the prompts
+ * registered in server.ts.
  */
 const ADVERTISED_PROMPTS = [
   'wetterNordschweiz',
@@ -48,6 +46,12 @@ const ADVERTISED_PROMPTS = [
   'sunFinder',
 ] as const;
 
+/**
+ * Tool names advertised on the informational `/` endpoint. Kept as a single
+ * source so the two JSON responses (HTML-fallback and API) cannot drift, and so
+ * a newly registered tool (e.g. meteoswissClimateData, previously omitted here)
+ * is easy to add in one place. Mirrors the tools registered in server.ts.
+ */
 const ADVERTISED_TOOLS = [
   'meteoswissLocalForecast',
   'meteoswissWeatherSituation',
