@@ -62,6 +62,26 @@ function fogFields(samples: readonly SituationSample[]): {
   };
 }
 
+/**
+ * The legend of an answer: the categories it shows, in a "pct" (a share that rounds to
+ * 0 % is left out there) or in the grid key.
+ *
+ * @param regions - The answer's regions
+ * @param grid - The answer's grid, if one was asked for
+ */
+export function legendOf(
+  regions: readonly { bands: readonly { pct: Readonly<Record<string, number>> }[] }[],
+  grid: { key: Readonly<Record<string, string>> } | null
+): Partial<Record<WeatherCategory, string>> {
+  const shown = new Set<string>(regions.flatMap((r) => r.bands.flatMap((b) => Object.keys(b.pct))));
+  for (const category of Object.values(grid?.key ?? {})) shown.add(category);
+  const legend: Partial<Record<WeatherCategory, string>> = {};
+  for (const category of WEATHER_CATEGORIES) {
+    if (shown.has(category)) legend[category] = CATEGORY_LEGEND[category];
+  }
+  return legend;
+}
+
 /** Build a reader for the counted hours of a run. */
 function hourReader(files: RunFiles, hours: readonly string[]): HourReader {
   const symbolSlots = timestampSlots(files.symbols, hours);
@@ -117,7 +137,6 @@ export async function getWeatherSituation(
   const samples: SituationSample[] = [];
   const gridSamples: GridSample[] | null = params.map === 'grid' ? [] : null;
   const seen = new Set<string>();
-  const present = new Set<WeatherCategory>();
   let counted = 0;
   let missing = 0;
   for (const point of points) {
@@ -143,7 +162,6 @@ export async function getWeatherSituation(
         continue;
       }
       any = true;
-      present.add(category);
       samples.push({ point: key, region: region.region, altitude: point.elevation, category });
       if (gridSamples && lv95) gridSamples.push({ ...lv95, category });
     }
@@ -158,10 +176,8 @@ export async function getWeatherSituation(
     bands: r.bands,
     ...(FOG_TOP_REGIONS.includes(r.id) ? fogFields(samples.filter((s) => s.region === r.id)) : {}),
   }));
-  const legend: Partial<Record<WeatherCategory, string>> = {};
-  for (const category of WEATHER_CATEGORIES) {
-    if (present.has(category)) legend[category] = CATEGORY_LEGEND[category];
-  }
+  const grid = gridSamples ? buildGrid(gridSamples) : null;
+  const legend = legendOf(regions, grid);
   debugData(
     '[ogd-situation] %s +%dh: %d points, %d point-hours missing, %d ms',
     fromTs,
@@ -174,7 +190,6 @@ export async function getWeatherSituation(
   // The first and last hour that were counted, not the endpoints asked for (the run may skip hours).
   const first = hours[0];
   const last = hours.at(-1);
-  const grid = gridSamples ? buildGrid(gridSamples) : null;
   return {
     valid: {
       from: zurichIso(first ?? fromTs),

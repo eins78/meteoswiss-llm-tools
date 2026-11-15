@@ -28,7 +28,7 @@ vi.mock('../../src/data/ogd-data-store.js', async (importOriginal) => {
   };
 });
 
-import { getWeatherSituation } from '../../src/data/ogd-weather-situation.js';
+import { getWeatherSituation, legendOf } from '../../src/data/ogd-weather-situation.js';
 import { cloudRunWarnings, pickRunAssets } from '../../src/data/weather-situation-run.js';
 
 const DEFAULT_BANDS = [500, 1000, 1500, 2000];
@@ -274,5 +274,23 @@ describe('pickRunAssets', () => {
 
   it('fails without a symbol file', () => {
     expect(() => pickRunAssets(item(all('202611131000').slice(1)))).toThrow(/jww003i0/);
+  });
+});
+
+describe('legendOf', () => {
+  const regions = [{ bands: [{ pct: { rain: 90, cloudy: 10 } }, { pct: { snow: 100 } }] }];
+
+  it('lists the categories that appear in a pct, in the legend order', () => {
+    expect(Object.keys(legendOf(regions, null))).toEqual(['cloudy', 'rain', 'snow']);
+  });
+
+  it('leaves out a category whose share rounded to 0 and so is in no pct', () => {
+    // 1 partly sunny point among 300 rounds to 0 % and is not in the pct: it needs no legend line.
+    expect(legendOf(regions, null).partly_sunny).toBeUndefined();
+  });
+
+  it('adds the categories of the grid key', () => {
+    const grid = { key: { S: 'sunny', R: 'rain', '.': 'no forecast point' } };
+    expect(Object.keys(legendOf(regions, grid))).toEqual(['sunny', 'cloudy', 'rain', 'snow']);
   });
 });
