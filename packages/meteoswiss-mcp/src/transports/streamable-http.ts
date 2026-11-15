@@ -40,8 +40,17 @@ interface StreamableHttpOptions {
  * a newly registered tool (e.g. meteoswissClimateData, previously omitted here)
  * is easy to add in one place. Mirrors the tools registered in server.ts.
  */
+const ADVERTISED_PROMPTS = [
+  'wetterNordschweiz',
+  'wetterSchweiz',
+  'meteoSuisseRomande',
+  'meteoTicino',
+  'sunFinder',
+] as const;
+
 const ADVERTISED_TOOLS = [
   'meteoswissLocalForecast',
+  'meteoswissWeatherSituation',
   'meteoswissCurrentWeather',
   'meteoswissStations',
   'meteoswissPollenData',
@@ -288,7 +297,7 @@ export async function createHttpServer(
           health: `/health`,
           capabilities: {
             tools: ADVERTISED_TOOLS,
-            prompts: ['wetterNordschweiz', 'wetterSchweiz', 'meteoSuisseRomande', 'meteoTicino'],
+            prompts: ADVERTISED_PROMPTS,
           },
         });
         return;
@@ -310,7 +319,7 @@ export async function createHttpServer(
           health: `/health`,
           capabilities: {
             tools: ADVERTISED_TOOLS,
-            prompts: ['wetterNordschweiz', 'wetterSchweiz', 'meteoSuisseRomande', 'meteoTicino'],
+            prompts: ADVERTISED_PROMPTS,
           },
         });
       }

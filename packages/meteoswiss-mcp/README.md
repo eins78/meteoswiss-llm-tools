@@ -85,6 +85,9 @@ Pre-configured prompts for common weather queries:
 | `wetterSchweiz` | German | Weather for any Swiss location |
 | `meteoSuisseRomande` | French | Forecast and current weather for Western Switzerland |
 | `meteoTicino` | Italian | Forecast and current weather for Southern Switzerland |
+| `sunFinder` | English | Where to catch the sun: arguments `day`, `start` (place) and `radius_km` (default 60) |
+
+The server also sends short **recipes** in its `instructions` (the `initialize` result), so an agent knows the tool order for questions like "where can I catch the sun tomorrow?" or "how high does the fog reach?" without a prompt. Prompts are for the person (a client lists them, e.g. as a slash command); the instructions are for the model.
 
 ---
 

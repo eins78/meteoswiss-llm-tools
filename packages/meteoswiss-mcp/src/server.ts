@@ -4,6 +4,7 @@
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { z } from 'zod';
 import { searchMeteoSwissContentSchema, SearchResultsSchema } from './schemas/meteoswiss-search.js';
 import type { SearchMeteoSwissContentInput } from './schemas/meteoswiss-search.js';
 import { fetchMeteoSwissContentSchema, ContentResponseSchema } from './schemas/meteoswiss-fetch.js';
@@ -46,6 +47,11 @@ import { recordToolCall } from './support/metrics.js';
 import type { McpPromptResponse } from './types/mcp-prompts.js';
 import { getVersion } from './support/version.js';
 import { logSafe } from './support/log-safe.js';
+import {
+  SERVER_INSTRUCTIONS,
+  SUN_FINDER_DEFAULT_RADIUS_KM,
+  sunFinderText,
+} from './support/server-instructions.js';
 
 /**
  * Log a tool failure as one sanitized stderr line. Resolver errors embed the raw
@@ -67,12 +73,15 @@ function logToolError(label: string, error: unknown): void {
  */
 export function createServer(): McpServer {
   debugServer('Creating MCP server instance');
-  const server = new McpServer({
-    name: 'meteoswiss-mcp',
-    version: getVersion(),
-    description:
-      'Access official MeteoSwiss weather data for Switzerland. Provides multi-day forecasts, the weather situation across Switzerland, real-time measurements, station listings, and pollen data from the MeteoSwiss app and website.',
-  });
+  const server = new McpServer(
+    {
+      name: 'meteoswiss-mcp',
+      version: getVersion(),
+      description:
+        'Access official MeteoSwiss weather data for Switzerland. Provides multi-day forecasts, the weather situation across Switzerland, real-time measurements, station listings, and pollen data from the MeteoSwiss app and website.',
+    },
+    { instructions: SERVER_INSTRUCTIONS }
+  );
   debugServer('MCP server created with name: meteoswiss-mcp');
 
   // Register error handler
@@ -579,6 +588,32 @@ Accepts station names ("Zurich", "Basel"), abbreviations ("SMA", "BAS"), or WGS8
       ],
     };
   });
+
+  // English prompt with arguments: where to catch the sun (the recipe of the server instructions)
+  server.prompt(
+    'sunFinder',
+    'Where can I catch the sun? Finds the sunniest places within reach of a start place, and the way above fog or low cloud',
+    {
+      day: z
+        .string()
+        .max(60)
+        .optional()
+        .describe('The day, e.g. "tomorrow" or "Saturday" (default: tomorrow)'),
+      start: z
+        .string()
+        .max(100)
+        .optional()
+        .describe('Start place: name or postal code (default: Zurich)'),
+      radius_km: z
+        .string()
+        .max(6)
+        .optional()
+        .describe(`Travel radius in km, up to 150 (default: ${SUN_FINDER_DEFAULT_RADIUS_KM})`),
+    },
+    (args): McpPromptResponse => ({
+      messages: [{ role: 'user', content: { type: 'text', text: sunFinderText(args) } }],
+    })
+  );
 
   return server;
 }
