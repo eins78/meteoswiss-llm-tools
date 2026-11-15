@@ -30,6 +30,24 @@ type ForecastIndex = {
 let indexCache: ForecastIndex | null = null;
 
 /**
+ * Index the postal-code points by postal code. Several points can share one code
+ * (6900: Lugano, Massagno, Paradiso); the one with the lowest point id is the
+ * code's own place (the id ends in 00), so it wins.
+ *
+ * @param points - All forecast points
+ */
+export function indexByPostalCode(points: readonly ForecastPoint[]): Map<string, ForecastPoint> {
+  const byPostalCode = new Map<string, ForecastPoint>();
+  for (const p of points) {
+    if (p.point_type_id !== 2 || !p.postal_code) continue;
+    const key = p.postal_code.toLowerCase();
+    const existing = byPostalCode.get(key);
+    if (existing === undefined || p.point_id < existing.point_id) byPostalCode.set(key, p);
+  }
+  return byPostalCode;
+}
+
+/**
  * Load forecast point metadata from the OGD STAC API and build lookup indexes.
  * Cached in memory after first load.
  */
@@ -64,12 +82,9 @@ async function loadForecastIndex(): Promise<ForecastIndex> {
     },
   }));
 
-  const byPostalCode = new Map<string, ForecastPoint>();
+  const byPostalCode = indexByPostalCode(points);
   const byAbbr = new Map<string, ForecastPoint>();
   for (const p of points) {
-    if (p.point_type_id === 2 && p.postal_code) {
-      byPostalCode.set(p.postal_code.toLowerCase(), p);
-    }
     if (p.point_type_id === 1 && p.station_abbr) {
       byAbbr.set(p.station_abbr.toLowerCase(), p);
     }
