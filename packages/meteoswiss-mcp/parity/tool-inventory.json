@@ -758,7 +758,7 @@
           },
           "generated": {
             "type": "string",
-            "description": "Timestamp the forecast was generated (ISO 8601)"
+            "description": "Time of the forecast run the data comes from, UTC (ISO 8601); runs are hourly"
           },
           "forecast": {
             "type": "array",
