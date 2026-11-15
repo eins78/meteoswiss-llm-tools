@@ -159,6 +159,38 @@ export async function loadRunFiles(item: StacItem): Promise<RunFiles> {
 }
 
 /**
+ * The warning for a window of which the run lacks some hours: the ones before its
+ * first or after its last hour (a window cut at the run's edge), and the ones
+ * between steps further ahead where the run has values only every few hours.
+ *
+ * @param index - The symbol file's index
+ * @param wanted - The hours asked for, UTC `YYYYMMDDhhmm`
+ * @param counted - The hours the run has, a subset of `wanted`
+ */
+export function missingHoursWarning(
+  index: ForecastIndex,
+  wanted: readonly string[],
+  counted: readonly string[]
+): string {
+  const all = [...index.timestampTable].sort();
+  const first = all[0] ?? '';
+  const last = all.at(-1) ?? '';
+  const missing = wanted.filter((ts) => !counted.includes(ts));
+  const before = missing.filter((ts) => ts < first).length;
+  const after = missing.filter((ts) => ts > last).length;
+  const between = missing.length - before - after;
+  const reasons: string[] = [];
+  if (before > 0) reasons.push(`${before} before the run's first hour (${zurichIso(first)})`);
+  if (after > 0) reasons.push(`${after} after the run's last hour (${zurichIso(last)})`);
+  if (between > 0) {
+    reasons.push(
+      `${between} between steps (further ahead the run has values only every few hours)`
+    );
+  }
+  return `The forecast run has symbols for ${counted.length} of the ${wanted.length} hours asked for; missing: ${reasons.join(', ')}. The counts use those ${counted.length}.`;
+}
+
+/**
  * The error for an hour the run has no symbol for: outside the run, or between
  * the steps further ahead where the run has values only every few hours.
  *

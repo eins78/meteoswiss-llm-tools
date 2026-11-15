@@ -49,6 +49,7 @@ describe('meteoswissWeatherSituation Tool', () => {
     expect(result.isError).toBeFalsy();
     const data = JSON.parse(result.content[0].text);
     expect(result.structuredContent).toEqual(data);
+    expect(result.content[0].text).not.toContain('\n'); // compact JSON, not indented
     expect(data.valid).toEqual({ from: '2026-03-28T09:00:00+01:00', hours: 1 });
     expect(data.points).toBe(33);
     expect(data.regions).toHaveLength(7);
@@ -108,6 +109,15 @@ describe('meteoswissWeatherSituation Tool', () => {
       near: { lat: 47.37, lon: 8.54, radius_km: 200 },
     });
     expect(result.isError).toBe(true);
+  });
+
+  it('rejects a misspelled parameter instead of dropping it', async () => {
+    const result = await client.callTool('meteoswissWeatherSituation', {
+      time: '2026-03-28T09:00',
+      min_altitude: 1500,
+    });
+    expect(result.isError).toBe(true);
+    expect(JSON.stringify(result.content)).toContain('min_altitude');
   });
 
   it('rejects an unknown region id', async () => {

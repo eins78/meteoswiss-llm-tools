@@ -21,7 +21,9 @@ Categories: sunny, clear_night, partly_sunny, cloudy, high_cloud, fog_or_stratus
 
 Reading the answer:
 - Times are local Europe/Zurich time with the UTC offset. The symbol of an hour describes the 3 hours that end at that time.
-- "points" counts forecast points, not area: they are dense in towns and the lowlands and sparse in the mountains. A band with few points says little.
+- "points" counts forecast points, not area: they are dense in towns and the lowlands and sparse in the mountains. A band with few points says little. A few places have two points (a station and a regional forecast point at the same spot); both count.
+- Around sunrise and sunset MeteoSwiss switches the points from day to night symbols at different hours, so one clear sky can show as both sunny and clear_night: add them for "clear sky" at those hours.
+- At high altitude fog_or_stratus usually means a summit in cloud (MeteoSwiss's own fog symbol), not a fog sea: for a fog question leave the summits out with max_altitude_m.
 - Per band, "pct" holds the shares in whole percent (they add up to 100) and "dominant" the most frequent category.
 - jura, mittelland and alpennordhang also carry "fog_top_m" (experimental): the top of a fog sea to the nearest 100 m: the 100 m bands that are mostly fog_or_stratus, starting with the region's lowest band (below 1000 m) up, with mostly sun in the 300 m above ("sunny_above_fog_pct"). null means no fog sea with sun above: no fog layer low down, or cloud above it. Over a window (until) all point-hours are pooled into one estimate for the whole window. For a fog question, also read the bands yourself.
 - With map: "grid", "grid.rows" is a coarse map, north at the top: one character per 5 km cell, the most frequent category there ("grid.key"). Use it to say where (west or east, which valleys) rather than how much.

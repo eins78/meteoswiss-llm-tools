@@ -152,7 +152,9 @@ export const LocalForecastResponseSchema = z.object({
     elevation: z.number().describe('Elevation in metres above sea level'),
     coordinates: CoordinatesSchema.describe('WGS84 coordinates of the resolved point'),
   }),
-  generated: z.string().describe('Timestamp the forecast was generated (ISO 8601)'),
+  generated: z
+    .string()
+    .describe('Time of the forecast run the data comes from, UTC (ISO 8601); runs are hourly'),
   forecast: z.array(DailyForecastSchema).describe('One entry per forecast day, in date order'),
   warnings: z
     .array(z.string())

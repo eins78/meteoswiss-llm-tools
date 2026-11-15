@@ -113,6 +113,25 @@ function findLatestAssetKey(item: StacItem, param: string): string | null {
 }
 
 /**
+ * The time of the forecast run the files come from (UTC, ISO 8601), read from the
+ * run stamp in the asset keys (`....202611151100.jww003i0.csv`): the newest run among
+ * the parameters. Null if no key carries one.
+ *
+ * @param item - STAC item of the local forecast collection
+ * @param params - The parameters read
+ */
+export function forecastRunTime(item: StacItem, params: readonly string[]): string | null {
+  const runs = params
+    .map((param) => findLatestAssetKey(item, param))
+    .map((key) => (key === null ? undefined : /\.(\d{12})\.[^.]+\.csv$/.exec(key)?.[1]))
+    .filter((run): run is string => run !== undefined)
+    .sort();
+  const run = runs.at(-1);
+  if (run === undefined) return null;
+  return `${run.slice(0, 4)}-${run.slice(4, 6)}-${run.slice(6, 8)}T${run.slice(8, 10)}:${run.slice(10, 12)}:00Z`;
+}
+
+/**
  * Convert a MeteoSwiss timestamp (YYYYMMDDhhmm) to a date string (YYYY-MM-DD).
  */
 function timestampToDate(ts: string): string {
@@ -445,7 +464,6 @@ export async function getLocalForecast(
     resolved.confidence
   );
 
-  const generated = String(item.properties.datetime ?? item.properties.updated ?? item.id);
   const pointIdStr = String(point.point_id);
   const pointTypeStr = String(point.point_type_id);
 
@@ -454,6 +472,11 @@ export async function getLocalForecast(
   // daily `weather` still comes from the official `jp2000d0` daily param).
   const paramsToFetch = forecastParamsFor(isStation, detail);
   const optionalParams = new Set(optionalParamsFor(isStation, detail));
+  // The run the files come from. The STAC item's own datetime is the day's first upload
+  // (about 04:00 UTC), not the run, so it is only the fallback.
+  const generated =
+    forecastRunTime(item, paramsToFetch) ??
+    String(item.properties.datetime ?? item.properties.updated ?? item.id);
 
   // Download all parameter CSVs concurrently. A failure of an OPTIONAL file (only the ones
   // "sky" adds — see `optionalParamsFor`) degrades to an empty map plus a warning so the
