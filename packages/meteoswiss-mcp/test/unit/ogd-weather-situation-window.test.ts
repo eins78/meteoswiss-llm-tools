@@ -67,7 +67,20 @@ describe('getWeatherSituation window', () => {
     expect(result.valid.hours).toBe(2);
     expect(result.points).toBe(1); // only Zürich 8001 has rows that far ahead
     expect(result.warnings).toEqual([
-      'The forecast run has symbols for 2 of the 4 hours asked for (further ahead it has values only every few hours); the counts use those 2.',
+      'The forecast run has symbols for 2 of the 4 hours asked for; missing: 2 between steps (further ahead the run has values only every few hours). The counts use those 2.',
+    ]);
+  });
+
+  it('says a window cut at the start of the run was cut there, not sparse', async () => {
+    // The fixture run starts 2026-03-26T11:00 local; 09:00 and 10:00 lie before it.
+    const result = await getWeatherSituation({
+      time: '2026-03-26T09:00',
+      until: '2026-03-26T12:00',
+      bands: [],
+    });
+    expect(result.valid.from).toBe('2026-03-26T11:00:00+01:00');
+    expect(result.warnings).toEqual([
+      "The forecast run has symbols for 2 of the 4 hours asked for; missing: 2 before the run's first hour (2026-03-26T11:00:00+01:00). The counts use those 2.",
     ]);
   });
 

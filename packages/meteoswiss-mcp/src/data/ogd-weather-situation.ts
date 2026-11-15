@@ -15,7 +15,12 @@ import { getPointRegions, pointKey } from './forecast-point-regions.js';
 import { FORECAST_REGIONS, FORECAST_REGION_SOURCE } from './forecast-regions-source.js';
 import { checkBandEdges, countSituation, type SituationSample } from './weather-situation-count.js';
 import { inArea, parseAreaFilter, windowTimestamps } from './weather-situation-filters.js';
-import { hourNotInRun, loadRunFiles, type RunFiles } from './weather-situation-run.js';
+import {
+  hourNotInRun,
+  loadRunFiles,
+  missingHoursWarning,
+  type RunFiles,
+} from './weather-situation-run.js';
 import { FOG_TOP_REGIONS, fogTop } from './weather-situation-fog.js';
 import { buildGrid, type GridSample } from './weather-situation-grid.js';
 import { wgs84ToLv95 } from '../support/swiss-coordinates.js';
@@ -105,9 +110,7 @@ export async function getWeatherSituation(
   if (hours.length === 0) throw hourNotInRun(files.symbols, fromTs, params.time, files.assets.run);
   const warnings = [...files.warnings];
   if (hours.length < wanted.length) {
-    warnings.push(
-      `The forecast run has symbols for ${hours.length} of the ${wanted.length} hours asked for (further ahead it has values only every few hours); the counts use those ${hours.length}.`
-    );
+    warnings.push(missingHoursWarning(files.symbols, wanted, hours));
   }
   const read = hourReader(files, hours);
 
