@@ -199,5 +199,7 @@ stale-while-revalidate, so a short MeteoSwiss outage does not break repeat reque
 
 ## Prompts
 
-The server also registers four conversation starters: `wetterNordschweiz` and `wetterSchweiz` (German), `meteoSuisseRomande` (French) and `meteoTicino` (Italian).
+The server also registers four conversation starters: `wetterNordschweiz` and `wetterSchweiz` (German), `meteoSuisseRomande` (French) and `meteoTicino` (Italian), and `sunFinder` (English), which takes a day, a start place and a travel radius in km and looks for the sunniest places within reach, and the way above fog.
 They are optional; clients that don't surface MCP prompts simply don't show them.
+
+For questions that need more than one call ("where can I catch the sun tomorrow?"), the server also sends short recipes in its `instructions` when a client connects, so an agent knows which tools to call in which order.
