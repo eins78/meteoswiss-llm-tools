@@ -68,6 +68,17 @@ function logToolError(label: string, error: unknown): void {
 }
 
 /**
+ * Annotations for every tool: all of them only read, never change or delete anything, and
+ * read an outside data source (MeteoSwiss). Clients such as ChatGPT developer mode treat a
+ * tool without readOnlyHint as a write action and ask before each call.
+ */
+export const TOOL_ANNOTATIONS = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  openWorldHint: true,
+} as const;
+
+/**
  * Create and configure the MeteoSwiss MCP server
  * @returns Configured MCP server instance
  */
@@ -103,6 +114,8 @@ export function createServer(): McpServer {
   server.registerTool(
     'search',
     {
+      title: 'Search MeteoSwiss website',
+      annotations: TOOL_ANNOTATIONS,
       description:
         'Search MeteoSwiss website content in multiple languages (DE, FR, IT, EN). Returns relevant pages with URLs that can be passed to the fetch tool. The pages hold articles and explanations, not forecast or measurement data: for a forecast use meteoswissLocalForecast (one place) or meteoswissWeatherSituation (all of Switzerland, e.g. where it is sunny or foggy). Always returns up to 10 results per page — the upstream API has a fixed page size that cannot be changed. Note: pagination may return duplicate results across pages (upstream API limitation).',
       inputSchema: searchMeteoSwissContentSchema.shape,
@@ -151,6 +164,8 @@ export function createServer(): McpServer {
   server.registerTool(
     'fetch',
     {
+      title: 'Fetch MeteoSwiss page',
+      annotations: TOOL_ANNOTATIONS,
       description:
         'Fetch full content from a MeteoSwiss webpage and convert to markdown or plain text. Use the search tool first to discover valid page URLs, then pass the full URL as the id parameter.',
       inputSchema: fetchMeteoSwissContentSchema.shape,
@@ -199,6 +214,8 @@ export function createServer(): McpServer {
   server.registerTool(
     'meteoswissLocalForecast',
     {
+      title: 'Local weather forecast',
+      annotations: TOOL_ANNOTATIONS,
       description: `Get a multi-day weather forecast for any Swiss location. Returns daily summaries (temperature, precipitation, sunshine, wind, weather icon) plus a hierarchical hourly breakdown of every series.
 
 This uses official MeteoSwiss Open Data — the same forecasts powering the MeteoSwiss app and website.
@@ -293,6 +310,8 @@ cloud_mid_pct and cloud_high_pct; use it for fog, stratus or low cloud questions
   server.registerTool(
     'meteoswissWeatherSituation',
     {
+      title: 'Weather situation across Switzerland',
+      annotations: TOOL_ANNOTATIONS,
       description: WEATHER_SITUATION_DESCRIPTION,
       // Strict: a misspelled filter (min_altitude for min_altitude_m) must fail, not return an unfiltered count.
       inputSchema: GetWeatherSituationParamsSchema.strict(),
@@ -328,6 +347,8 @@ cloud_mid_pct and cloud_high_pct; use it for fog, stratus or low cloud questions
   server.registerTool(
     'meteoswissCurrentWeather',
     {
+      title: 'Current weather measurements',
+      annotations: TOOL_ANNOTATIONS,
       description: `Get real-time weather measurements from ~300 Swiss automatic weather stations (~160 full weather + ~140 precipitation-only). Returns temperature, precipitation, wind, humidity, pressure, sunshine, and more. Data updates every 10 minutes. Precipitation-only stations return only rainfall data.
 
 For 8 stations (Zurich, Basel, Chur, Sion, Altdorf, Säntis, Jungfraujoch, Grand St-Bernard), also includes daily visual observations: cloud cover, fog, rain, snowfall, hail, and snow coverage.
@@ -372,6 +393,8 @@ Accepts station names ("Zurich"), abbreviations ("SMA"), addresses ("Bahnhofplat
   server.registerTool(
     'meteoswissStations',
     {
+      title: 'Measurement stations',
+      annotations: TOOL_ANNOTATIONS,
       description: `List and search MeteoSwiss measurement stations. Filter by name, canton, or browse the full network of ~300 stations (~160 full weather + ~140 precipitation-only) across Switzerland.`,
       inputSchema: ListStationsParamsSchema.shape,
       outputSchema: StationListResponseSchema.shape,
@@ -412,6 +435,8 @@ Accepts station names ("Zurich"), abbreviations ("SMA"), addresses ("Bahnhofplat
   server.registerTool(
     'meteoswissPollenData',
     {
+      title: 'Pollen levels',
+      annotations: TOOL_ANNOTATIONS,
       description: `Get current pollen concentration data from MeteoSwiss monitoring stations (~15 stations across Switzerland). Shows pollen levels for 7 measured species (alder, birch, hazel, beech, ash, oak, grasses) — each is always included, with a "no-current-data" status when out of season. Ambrosia (ragweed) is a MeteoSwiss forecast-only category and is not part of this OGD measurement network, so it is not included. Useful for allergy sufferers.`,
       inputSchema: GetPollenDataParamsSchema.shape,
       outputSchema: PollenDataResponseSchema.shape,
@@ -452,6 +477,8 @@ Accepts station names ("Zurich"), abbreviations ("SMA"), addresses ("Bahnhofplat
   server.registerTool(
     'meteoswissClimateData',
     {
+      title: 'Climate data series',
+      annotations: TOOL_ANNOTATIONS,
       description: `Get homogeneous climate measurement series from Switzerland's National Basic Climatic Network (NBCN). Returns temperature, precipitation, sunshine, radiation, wind, pressure, and climate indicators (frost days, summer days, heat days) going back decades.
 
 29 climate stations + 46 precipitation stations with daily, monthly, and yearly resolution.
