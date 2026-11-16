@@ -1,8 +1,17 @@
+# Patterns with a slash match only from the repo root, so each one starts with **/ to
+# also match inside packages/*. Without it GitHub's language bar counted the HTML
+# files under packages/*/docs and packages/*/test/__fixtures__.
+
 # Mark vendor directories as vendored for GitHub language statistics
-vendor/** linguist-vendored
+**/vendor/** linguist-vendored
 
 # Mark test fixtures as vendored
-test/__fixtures__/** linguist-vendored
+**/test/__fixtures__/** linguist-vendored
 
 # Mark markdownfiles in source as not documentation
-src/**/*.md -linguist-documentation
+**/src/**/*.md -linguist-documentation
+
+# Mark docs trees (reports, rendered eval results, plans) as documentation.
+# Placed after the src rule: the last matching pattern wins, so the docs site
+# (src/content/docs) stays documentation.
+**/docs/** linguist-documentation
