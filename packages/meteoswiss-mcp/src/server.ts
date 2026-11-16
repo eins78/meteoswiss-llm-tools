@@ -52,6 +52,8 @@ import {
   SUN_FINDER_DEFAULT_RADIUS_KM,
   sunFinderText,
 } from './support/server-instructions.js';
+import { UI_EXTENSION_ID, isMapAppEnabled } from './support/map-app.js';
+import { registerWeatherMapApp } from './tools/weather-map-app.js';
 
 /**
  * Log a tool failure as one sanitized stderr line. Resolver errors embed the raw
@@ -67,12 +69,23 @@ function logToolError(label: string, error: unknown): void {
   console.error(`${label}: ${logSafe(message, 500)}`);
 }
 
+/** Options of {@link createServer}. */
+export interface CreateServerOptions {
+  /**
+   * Offer the weather map MCP App (`meteoswissWeatherMapExperimental` and its view) to clients that render
+   * views. Default: the environment flag `METEOSWISS_MAP_APP=true`, off otherwise.
+   */
+  mapApp?: boolean;
+}
+
 /**
  * Create and configure the MeteoSwiss MCP server
+ * @param options - Optional switches; the defaults read the environment
  * @returns Configured MCP server instance
  */
-export function createServer(): McpServer {
+export function createServer(options: CreateServerOptions = {}): McpServer {
   debugServer('Creating MCP server instance');
+  const mapApp = options.mapApp ?? isMapAppEnabled();
   const server = new McpServer(
     {
       name: 'meteoswiss-mcp',
@@ -80,7 +93,11 @@ export function createServer(): McpServer {
       description:
         'Access official MeteoSwiss weather data for Switzerland. Provides multi-day forecasts, the weather situation across Switzerland, real-time measurements, station listings, and pollen data from the MeteoSwiss app and website.',
     },
-    { instructions: SERVER_INSTRUCTIONS }
+    {
+      instructions: SERVER_INSTRUCTIONS,
+      // MCP Apps extension (see support/map-app.ts): declared only while the map app is on.
+      ...(mapApp ? { capabilities: { extensions: { [UI_EXTENSION_ID]: {} } } } : {}),
+    }
   );
   debugServer('MCP server created with name: meteoswiss-mcp');
 
@@ -614,6 +631,11 @@ Accepts station names ("Zurich", "Basel"), abbreviations ("SMA", "BAS"), or WGS8
       messages: [{ role: 'user', content: { type: 'text', text: sunFinderText(args) } }],
     })
   );
+
+  if (mapApp) {
+    debugServer('Weather map app enabled (METEOSWISS_MAP_APP)');
+    registerWeatherMapApp(server);
+  }
 
   return server;
 }

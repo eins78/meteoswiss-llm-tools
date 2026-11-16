@@ -89,6 +89,12 @@ Pre-configured prompts for common weather queries:
 
 The server also sends short **recipes** in its `instructions` (the `initialize` result), so an agent knows the tool order for questions like "where can I catch the sun tomorrow?" or "how high does the fog reach?" without a prompt. Prompts are for the person (a client lists them, e.g. as a slash command); the instructions are for the model.
 
+## Weather map app (experimental, off by default)
+
+With `METEOSWISS_MAP_APP=true` the server is also an [MCP App](https://modelcontextprotocol.io/extensions/apps/overview): a ninth tool, `meteoswissWeatherMapExperimental` (title "Weather map (experimental)"; the name says it may change or go away), takes the inputs of `meteoswissWeatherSituation` (without `map`) and returns the same answer with the 5 km grid. A client that renders MCP Apps shows a map next to it: one coloured cell per 5 km, a legend and the seven forecast regions with their dominant weather. The map is drawn from the tool result alone, by a self-contained page (`ui://meteoswiss/situation-map.html`, MIME `text/html;profile=mcp-app`) with inline script and style, no network access and the default sandbox CSP. It draws no base map and no region outlines.
+
+The tool and the view are offered only to a client that says in `initialize` that it renders views (`capabilities.extensions["io.modelcontextprotocol/ui"]` with the view MIME type). Every other client sees the same eight tools as before, and the answers of the existing tools do not change. The flag is read when a session starts.
+
 ---
 
 ## Self-Hosting

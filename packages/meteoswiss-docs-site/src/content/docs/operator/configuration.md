@@ -19,6 +19,7 @@ message naming the variable. The cache variables are not validated: a non-numeri
 | `REQUEST_SIZE_LIMIT` | `10mb` | Maximum request body size (413 when exceeded) |
 | `MAX_RESPONSE_BYTES` | `52428800` | Hard ceiling (50 MiB) on any single upstream response body |
 | `METRICS_ENABLED` | `false` | Expose Prometheus metrics at `/metrics` |
+| `METEOSWISS_MAP_APP` | `false` | Experimental. `true` offers the weather map MCP App (`meteoswissWeatherMapExperimental` and its `ui://` view) to clients that render MCP Apps. Other clients see no change |
 
 ## Sessions and rate limiting
 
