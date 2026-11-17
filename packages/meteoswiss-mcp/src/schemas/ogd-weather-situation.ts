@@ -26,7 +26,8 @@ Reading the answer:
 - At high altitude fog_or_stratus usually means a summit in cloud (MeteoSwiss's own fog symbol), not a fog sea: for a fog question leave the summits out with max_altitude_m.
 - Per band, "pct" holds the shares in whole percent (they add up to 100) and "dominant" the most frequent category.
 - jura, mittelland and alpennordhang also carry "fog_top_m" (experimental): the top of a fog sea to the nearest 100 m: the 100 m bands that are mostly fog_or_stratus, starting with the region's lowest band (below 1000 m) up, with mostly sun in the 300 m above ("sunny_above_fog_pct"). null means no fog sea with sun above: no fog layer low down, or cloud above it. Over a window (until) all point-hours are pooled into one estimate for the whole window. For a fog question, also read the bands yourself.
-- With map: "grid", "grid.rows" is a coarse map, north at the top: one character per 5 km cell, the most frequent category there ("grid.key"). Use it to say where (west or east, which valleys) rather than how much.
+- With map: "grid", "grid.rows" is a coarse map, north at the top: one character per 5 km cell, the most frequent category there ("grid.key"); "grid.cols" is the number of characters in every row and "grid.row_count" the number of rows. Use it to say where (west or east, which valleys) rather than how much. To show the user a map, use meteoswissWeatherMapExperimental if it is listed: the client then displays a ready-made map, so do not draw one yourself.
+- "missing" (present only when more than 0) counts the point-hours left out because the run has no weather symbol for them. They are in no share and no count: a few change nothing, many mean the answer rests on fewer points.
 - The forecast is updated hourly. Further ahead it may have symbols only every few hours; a time the run does not cover is an error that names the hours it has.
 
 Source: MeteoSwiss Open Data; the forecast regions come from the MeteoSwiss website (Source: MeteoSwiss).`;
@@ -186,6 +187,8 @@ export const WeatherSituationResponseSchema = z.object({
         .number()
         .int()
         .describe('LV95 north coordinate of the north edge of the first row, m'),
+      cols: z.number().int().describe('Cells per row: the length of every string in "rows"'),
+      row_count: z.number().int().describe('Number of rows: the length of "rows"'),
       rows: z
         .array(z.string())
         .describe(

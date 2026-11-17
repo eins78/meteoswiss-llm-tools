@@ -31,6 +31,8 @@ describe('buildGrid', () => {
       cell_m: 5000,
       west: 2_600_000,
       north: 1_210_000,
+      cols: 3,
+      row_count: 2,
       rows: ['R..', 'S.F'],
       key: { S: 'sunny', F: 'fog_or_stratus', R: 'rain', '.': 'no forecast point' },
     });

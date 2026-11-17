@@ -44,7 +44,9 @@ describe('getWeatherSituation (fixtures)', () => {
     expect(result.points).toBe(33);
     expect(result.missing).toBe(1); // Napf has no row at this hour
     expect(result.warnings).toBeUndefined();
-    expect(result.source).toBe('MeteoSwiss Open Data; forecast regions: Source: MeteoSwiss');
+    expect(result.source).toBe(
+      'MeteoSwiss Open Data (https://opendatadocs.meteoswiss.ch/); forecast regions: Source: MeteoSwiss (https://www.meteoswiss.admin.ch/)'
+    );
     expect(result.regions.map((r) => r.id)).toEqual([
       'jura',
       'mittelland',

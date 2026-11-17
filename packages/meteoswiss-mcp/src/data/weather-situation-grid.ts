@@ -45,6 +45,10 @@ export type SituationGrid = {
   west: number;
   /** LV95 north of the raster's north edge, m */
   north: number;
+  /** Cells per row (characters in each string of `rows`) */
+  cols: number;
+  /** Number of rows, north to south */
+  row_count: number;
   /** Rows north to south; character i of a row is the cell i × cell_m east of `west` */
   rows: string[];
   /** Character → category, for the characters in `rows` */
@@ -115,6 +119,8 @@ export function buildGrid(samples: Iterable<GridSample>): SituationGrid | null {
     cell_m: GRID_CELL_M,
     west: ORIGIN_E + minCol * GRID_CELL_M,
     north: ORIGIN_N + (maxRow + 1) * GRID_CELL_M,
+    cols: maxCol - minCol + 1,
+    row_count: rows.length,
     rows,
     key,
   };
