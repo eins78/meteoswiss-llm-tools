@@ -38,6 +38,10 @@ import type {
   WeatherSituationResponse,
 } from '../schemas/ogd-weather-situation.js';
 
+/** Where a reader finds the data (the Open Data documentation) and the forecast regions (the website). */
+const SOURCE_LINK = 'https://opendatadocs.meteoswiss.ch/';
+const REGIONS_LINK = 'https://www.meteoswiss.admin.ch/';
+
 const REGION_NAMES = new Map(FORECAST_REGIONS.map((r) => [r.id, r.names.de] as const));
 
 /** Reads one point's symbol and cloud cover at each counted hour. */
@@ -203,6 +207,6 @@ export async function getWeatherSituation(
     legend,
     ...(grid ? { grid } : {}),
     ...(warnings.length > 0 ? { warnings } : {}),
-    source: `${SOURCE_ATTRIBUTION}; forecast regions: ${FORECAST_REGION_SOURCE.attribution}`,
+    source: `${SOURCE_ATTRIBUTION} (${SOURCE_LINK}); forecast regions: ${FORECAST_REGION_SOURCE.attribution} (${REGIONS_LINK})`,
   };
 }

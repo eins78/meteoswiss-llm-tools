@@ -25,6 +25,8 @@ const SITUATION = {
     cell_m: 5000,
     west: 2480000,
     north: 1300000,
+    cols: 3,
+    row_count: 2,
     rows: ['SS.', 'SW.'],
     key: { S: 'sunny', W: 'snow', '.': 'no forecast point' },
   },
