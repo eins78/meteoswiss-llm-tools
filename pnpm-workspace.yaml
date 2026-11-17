@@ -49,3 +49,7 @@ auditConfig:
   ignoreGhsas:
     - GHSA-frvp-7c67-39w9
     - GHSA-vfj7-8cjw-p6xm
+    # picomatch ReDoS through repeated extglobs (2026-11-17): no patched version exists (<=4.0.7,
+    # the override above already pins the newest). Dev-only paths (changesets, eslint, tinyglobby):
+    # `pnpm audit --prod` is clean. Remove when a fixed picomatch exists.
+    - GHSA-fc5q-39xc-vjpf
