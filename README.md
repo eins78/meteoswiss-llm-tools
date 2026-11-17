@@ -60,6 +60,8 @@ claude mcp add --transport http meteoswiss https://meteoswiss-mcp.ars.is/mcp
 
 For **Cursor**, install from the [Cursor Directory](https://cursor.directory/plugins/meteoswiss-llm-tools) or add manually via Settings → MCP.
 
+The repo's root plugin (`.claude-plugin/`, `.cursor-plugin/`) bundles this server through `.mcp.json` and adds the `meteoswiss-situation-recipes` skill: the same recipes the server sends in its `instructions`, for clients that do not pass those to the model.
+
 Or self-host with Docker:
 
 ```bash

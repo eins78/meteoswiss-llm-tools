@@ -1,7 +1,7 @@
 {
   "name": "meteoswiss-llm-tools",
   "description": "Swiss weather data for AI assistants — forecasts, current conditions, stations, and pollen from MeteoSwiss Open Data. Free, no API key required.",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "author": {
     "name": "Max Albrecht",
     "email": "1@178.is"
