@@ -1,18 +1,24 @@
 # meteoswiss-skills
 
-## 1.1.2 - 2026-11-14
+## 1.1.2
+
+Released 2026-11-14
 
 ### Patch Changes
 
 - de00071: The skill has a new section on the weather across Switzerland at one hour: count the weather symbol of all forecast points by altitude band from one forecast file, and spot a low cloud deck with the cloud cover files.
 
-## 1.1.1 - 2026-11-13
+## 1.1.1
+
+Released 2026-11-13
 
 ### Patch Changes
 
 - f3aac54: The skill no longer calls the weather pictogram `jww003i0` 3-hourly: it has one value per hour. It also lists the cloud cover parameters `nprolohs`, `npromths` and `nprohihs`.
 
-## 1.1.0 - 2026-07-18
+## 1.1.0
+
+Released 2026-07-18
 
 ### Minor Changes
 
