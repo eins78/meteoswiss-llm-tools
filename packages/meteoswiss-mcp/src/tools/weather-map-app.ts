@@ -28,7 +28,7 @@ import { SITUATION_MAP_HTML } from '../views/situation-map.js';
 /** Same inputs as meteoswissWeatherSituation, without `map` (the map is the point of this tool). */
 const WeatherMapParamsSchema = GetWeatherSituationParamsSchema.omit({ map: true }).strict();
 
-const WEATHER_MAP_DESCRIPTION = `Experimental: this tool may change or go away. Show a map of the weather over Switzerland at one hour (or a window of up to 12 hours): one coloured cell per 5 km, the most frequent weather there, with the seven MeteoSwiss forecast regions and a legend. Use it when the user wants to see where it is sunny, foggy, wet or snowing. It takes the inputs of meteoswissWeatherSituation and returns the same answer with the grid, so the counts per region and altitude band can be read from the text as well. For one place use meteoswissLocalForecast.`;
+const WEATHER_MAP_DESCRIPTION = `Experimental: this tool may change or go away. Shows the user a ready-made map of the weather over Switzerland at one hour (or a window of up to 12 hours): one coloured cell per 5 km, the most frequent weather there, with the seven MeteoSwiss forecast regions and a legend. Call it whenever the user asks to see or show a map of the weather, instead of drawing a map yourself from meteoswissWeatherSituation: the client displays the map from this call. It takes the inputs of meteoswissWeatherSituation and returns the same answer with the grid, so the counts per region and altitude band can be read from the text as well. For one place use meteoswissLocalForecast.`;
 
 /**
  * Register the map tool and its view on a server, switched off until the client has said that

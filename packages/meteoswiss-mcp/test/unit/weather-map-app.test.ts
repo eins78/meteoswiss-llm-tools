@@ -93,6 +93,8 @@ describe('weather map app: a client that renders views', () => {
     });
     expect(tool?.title).toBe('Weather map (experimental)');
     expect(tool?.description).toMatch(/^Experimental: .*may change or go away/);
+    // Two real clients drew their own map from the situation tool instead of calling this one.
+    expect(tool?.description).toMatch(/whenever the user asks to see or show a map.*instead of drawing a map yourself/);
     expect(tool?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
     expect(tool?.inputSchema.properties).not.toHaveProperty('map');
     expect(tool?.inputSchema.properties).toHaveProperty('time');
