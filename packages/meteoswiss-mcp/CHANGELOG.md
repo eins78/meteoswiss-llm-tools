@@ -1,6 +1,8 @@
 # meteoswiss-mcp
 
-## 4.2.1 - 2026-11-15
+## 4.2.1
+
+Released 2026-11-15
 
 ### Patch Changes
 
@@ -14,7 +16,9 @@
   - `meteoswissLocalForecast`: `generated` is now the forecast run (for example `2026-11-15T11:00:00Z`) instead of the day's first upload (about 04:00 UTC).
   - A postal code shared by several points (6900: Lugano, Massagno, Paradiso) now resolves to its own place, Lugano, instead of the last one listed.
 
-## 4.2.0 - 2026-11-14
+## 4.2.0
+
+Released 2026-11-14
 
 ### Minor Changes
 
@@ -22,7 +26,9 @@
   
   The seven forecast regions are not Open Data: the server downloads them from the MeteoSwiss website on first use and keeps them for 30 days in a part of the disk cache that the size limit never evicts (Source: MeteoSwiss). Two new optional settings: `FORECAST_REGIONS_BASE_URL` (where the files come from) and `FORECAST_REGIONS_CACHE_TTL` (how long they are kept). Points outside the seven regions are counted in the nearest one.
 
-## 4.1.0 - 2026-11-13
+## 4.1.0
+
+Released 2026-11-13
 
 ### Minor Changes
 
@@ -33,7 +39,9 @@
 - 3a77d3e: With `detail: "sky"`, a failed download of a cloud cover file (or, for a station, of the hourly weather symbol file) no longer fails the call. The fields from that file are `null`, and the answer has a `warnings` list that names the file. Answers without `"sky"` do not change.
 - eb4d0fa: Update `hono` to 4.13.18 and `@hono/node-server` to 2.1.8, reached through `@modelcontextprotocol/sdk`, to fix published security advisories (GHSA-h7mg-cq63-vhpq, GHSA-46wx-v44x-9hh2, GHSA-4h7h-rv7c-7m2v and three more for `mount()`, path backslashes and WebSocket upgrades). No tool behaviour changes.
 
-## 4.0.1 - 2026-11-02
+## 4.0.1
+
+Released 2026-11-02
 
 ### Patch Changes
 
@@ -41,7 +49,9 @@
 - 93da8de: The container image now runs on Node.js 26 LTS (`node:26-alpine`, was `node:24-alpine`), and `@types/node` is `^26`. The supported range is unchanged: `engines.node` stays `>=22.0.0`, so installs from npm on Node 22 and 24 keep working.
 - 1d004c1: Update dependencies to fix published security advisories: `zod` 4.6.7 (GHSA-mrhx-c7xc-m3w5), `body-parser` 2.4.0 (GHSA-27r3-jxmh-p828), `qs`, `undici`, `fast-uri`, `ip-address`, `hono` and `@hono/node-server`, reached through `@modelcontextprotocol/sdk` 1.32.2, `express` 5.3.0 and `express-rate-limit`. No tool behaviour changes. `tools/list` now advertises nullable fields as `"type": ["string", "null"]` instead of `anyOf`; the two forms are equivalent JSON Schema.
 
-## 4.0.0 - 2026-10-20
+## 4.0.0
+
+Released 2026-10-20
 
 ### Major Changes
 
@@ -60,19 +70,25 @@
 - 4875891: The rate limiter now runs before the JSON body parser, so a client over its quota is refused before its body is read. The parser only runs on `/mcp`, and it refuses compressed request bodies (415) instead of inflating them. Malformed JSON now gets 400 with a JSON-RPC parse error, and an oversize body gets 413. Both returned 500 before.
 - b853621: Tool failures are now logged as one sanitized stderr line. Before, the error object was logged as is, and resolver messages carry the raw tool argument, so a newline in an argument could start a forged log line. The full error stays available in the debug log.
 
-## 3.1.2 - 2026-10-11
+## 3.1.2
+
+Released 2026-10-11
 
 ### Patch Changes
 
 - 3516936: Forecast requests are much faster. The cached forecast CSVs are no longer re-parsed on every request: each file is parsed once per cached version into a compact in-memory index, and concurrent requests share one download and one parse. The parse itself is also more than 25x faster (a schema-specific byte scanner that falls back to the generic parser on any unexpected input) and runs on up to two worker threads, so it no longer blocks the event loop. A cold forecast call drops from about 12 s to under 1 s, a warm one to a few milliseconds, and eight concurrent calls from about 90 s to about 1 s. Retained memory is bounded by `OGD_PARSE_CACHE_MAX_BYTES` (default 128 MiB, `0` disables retention); `OGD_PARSE_WORKERS` sets the worker count (default 2, `0` parses on the main thread).
 
-## 3.1.1 - 2026-10-11
+## 3.1.1
+
+Released 2026-10-11
 
 ### Patch Changes
 
 - 70bf04e: Bump runtime dependencies for security advisories: `@modelcontextprotocol/sdk` ^1.32.1 (GHSA-6qxp-vccf-f47h), `js-yaml` ^5.4.3 (GHSA-r3ph-w7gj-g6xm), plus refreshed `pnpm.overrides` security pins (`shell-quote`, `fast-uri`, `undici`, `ws`, `brace-expansion`, `proxy-addr`, `ip-address`, `@typescript-eslint/utils`). Ignore unpatchable `braces` advisory GHSA-vfj7-8cjw-p6xm (no fixed release exists yet).
 
-## 3.1.0 - 2026-09-11
+## 3.1.0
+
+Released 2026-09-11
 
 ### Minor Changes
 
@@ -94,7 +110,9 @@
 
   New optional environment variable: `OGD_CACHE_DIR_REAP_MIN_AGE_MS` (default `60000`) — how long an empty cache directory must have been idle before it is reclaimed.
 
-## 3.1.0-rc.0 - 2026-09-11
+## 3.1.0-rc.0
+
+Released 2026-09-11
 
 ### Minor Changes
 
@@ -116,7 +134,9 @@
 
   New optional environment variable: `OGD_CACHE_DIR_REAP_MIN_AGE_MS` (default `60000`) — how long an empty cache directory must have been idle before it is reclaimed.
 
-## 3.0.0 - 2026-07-18
+## 3.0.0
+
+Released 2026-07-18
 
 ### Major Changes
 
@@ -177,19 +197,25 @@
 
 - 41330a2: Document the `meteoswissClimateData` tool on the service homepage, correct the station count in tool descriptions and docs (~300 measurement stations: ~160 full weather + ~140 precipitation-only), and link the new skill-vs-MCP case study from the homepage.
 
-## 2.3.2 - 2026-04-20
+## 2.3.2
+
+Released 2026-04-20
 
 ### Patch Changes
 
 - 7eb1e59: Restore ChatGPT Deep Research / Connectors compatibility for the `fetch` tool. The v2.3.1 release renamed the `fetch` argument from `id` to `url`, which broke the canonical contract that ChatGPT (and the OpenAI Responses API Deep Research models) expects. This release renames it back to `id`, adds the canonical `text` and top-level `url` fields to the `fetch` response, keeps `content` as a back-compat alias of `text`, and adds an integration test suite + tool-manifest snapshot to prevent the regression from recurring. See `docs/plans/2026-04-19-chatgpt-fetch-compat.md` for the full investigation and references.
 
-## 2.3.1 - 2026-04-18
+## 2.3.1
+
+Released 2026-04-18
 
 ### Patch Changes
 
 - fa7ab7b: Expose `meteoswiss_mcp_build_info{version, node_version}` Prometheus gauge for version observability. Enables the Grafana dashboard to show the deployed version of each environment (TEST and PROD) at a glance without querying MCP endpoints.
 
-## 2.3.0 - 2026-04-18
+## 2.3.0
+
+Released 2026-04-18
 
 ### Minor Changes
 
@@ -211,7 +237,9 @@
   - **OBS visual observations**: Boolean fields (`has_rain`, `has_snowfall`, etc.) always return `true`/`false` instead of being stripped when MeteoSwiss reports "-" (not observed)
   - **`fetch` tool**: Revert unintentional breaking parameter rename — `id` reverted to `url`
 
-## 2.2.1 - 2026-04-03
+## 2.2.1
+
+Released 2026-04-03
 
 ### Patch Changes
 
@@ -222,7 +250,9 @@
   - **forecast:** Filter out past dates before slicing to requested days count
   - **search:** Document upstream pagination overlap and date-asc sort behavior
 
-## 2.2.0 - 2026-04-03
+## 2.2.0
+
+Released 2026-04-03
 
 ### Minor Changes
 
@@ -230,25 +260,33 @@
   - **Metrics exposed**: `mcp_tool_calls_total{tool_name}` (counter), `mcp_tool_call_duration_seconds{tool_name}` (latency histogram), `mcp_active_sessions` (gauge), `mcp_requests_total{method}` (HTTP request counter), and `nodejs_*` runtime metrics (memory, GC, event loop)
   - **Privacy**: No user data is collected — only tool names, HTTP methods, and session counts
 
-## 2.1.0 - 2026-03-29
+## 2.1.0
+
+Released 2026-03-29
 
 ### Minor Changes
 
 - 0ba372a: Add weather icon SVG URLs to forecast responses. Each daily forecast now includes a `weather_icon_url` field linking to the official MeteoSwiss SVG pictogram. The skill documentation is updated with the URL pattern.
 
-## 2.0.2 - 2026-03-29
+## 2.0.2
+
+Released 2026-03-29
 
 ### Patch Changes
 
 - a976037: Add MCP Registry metadata (`mcpName` + `server.json`) and register with the official MCP Registry.
 
-## 2.0.1 - 2026-03-29
+## 2.0.1
+
+Released 2026-03-29
 
 ### Patch Changes
 
 - 63f6f7f: Add an automated GitHub Actions release pipeline (#50). Publishes to npm via Trusted Publishers (OIDC, no tokens) and builds multi-platform Docker images (amd64 + arm64) to GHCR. Also fixes the published npm package size (65 kB, previously 81 MB) and adapts the Docker build and release workflow to the monorepo layout.
 
-## 2.0.0 - 2026-03-29
+## 2.0.0
+
+Released 2026-03-29
 
 ### Major Changes
 
@@ -259,7 +297,9 @@
   - **Transport**: Migrate from SSE to MCP Streamable HTTP (SDK 1.28+)
   - **Dependencies**: Upgrade to Zod 4
 
-## 1.0.0 - 2025-06-09
+## 1.0.0
+
+Released 2025-06-09
 
 ### Major Changes
 

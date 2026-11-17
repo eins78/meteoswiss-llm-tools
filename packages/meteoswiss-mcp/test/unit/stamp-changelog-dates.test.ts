@@ -132,6 +132,30 @@ describe('the changesets action finds the entry of a stamped changelog', () => {
   });
 });
 
+describe('the changelogs in this repo', () => {
+  const packages = fileURLToPath(new URL('../../../', import.meta.url));
+
+  it.each(['meteoswiss-mcp', 'meteoswiss-skills'])(
+    '%s: every version heading is bare, so the action can find its entry',
+    (name) => {
+      const text = readFileSync(join(packages, name, 'CHANGELOG.md'), 'utf8');
+      const headings = text.match(/^## .*$/gm) ?? [];
+      expect(headings.length).toBeGreaterThan(0);
+      for (const heading of headings) {
+        expect(heading).toMatch(/^## \d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/);
+        const version = heading.slice(3);
+        expect(getChangelogEntry(text, version)).not.toBe(text);
+      }
+    }
+  );
+
+  it('meteoswiss-mcp: every version carries its Released line', () => {
+    const text = readFileSync(join(packages, 'meteoswiss-mcp', 'CHANGELOG.md'), 'utf8');
+    const headings = text.match(/^## .*$/gm) ?? [];
+    expect(text.match(/^Released \d{4}-\d{2}-\d{2}$/gm)).toHaveLength(headings.length);
+  });
+});
+
 describe('the script, run on a repo the way `pnpm run version` runs it', () => {
   const root = mkdtempSync(join(tmpdir(), 'stamp-changelog-'));
   afterAll(() => rmSync(root, { recursive: true, force: true }));
