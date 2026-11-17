@@ -123,8 +123,18 @@ const SCRIPT = `
     return { x: x, y: y, category: grid.key[row.charAt(x)] || null };
   }
 
+  // The tool sends its answer twice: as structuredContent and as JSON text. A host that passes
+  // only the content blocks to the view still gives the same answer.
+  function answerOf(result) {
+    if (!result) return null;
+    if (result.structuredContent) return result.structuredContent;
+    var first = Array.isArray(result.content) ? result.content[0] : null;
+    if (!first || typeof first.text !== 'string') return null;
+    try { return JSON.parse(first.text); } catch (e) { return null; }
+  }
+
   function render(result) {
-    var data = result && result.structuredContent;
+    var data = answerOf(result);
     if (!data || !data.grid || !Array.isArray(data.grid.rows)) {
       var text = '';
       if (result && Array.isArray(result.content) && result.content[0] && typeof result.content[0].text === 'string') {
@@ -211,11 +221,17 @@ const SCRIPT = `
   if (typeof ResizeObserver === 'function') new ResizeObserver(reportSize).observe(document.body);
 
   message('Waiting for the weather map ...');
+  // The fields are those of McpUiInitializeRequest in the MCP Apps spec (2026-01-26): a host
+  // validates them and answers an invalid request with an error, not with a result.
   request('ui/initialize', {
     protocolVersion: '2026-01-26',
-    capabilities: {},
-    clientInfo: { name: 'meteoswiss-situation-map', version: '1.0.0' }
+    appInfo: { name: 'meteoswiss-situation-map', version: '1.0.0' },
+    appCapabilities: {}
   }).then(function (reply) {
+    if (reply && reply.error) {
+      message('The host refused to start the weather map: ' + (reply.error.message || 'unknown error'));
+      return;
+    }
     if (reply && reply.result) applyTheme(reply.result.hostContext);
     notify('ui/notifications/initialized');
     ready = true;

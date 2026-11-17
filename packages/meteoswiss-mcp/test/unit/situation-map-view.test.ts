@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { JSDOM } from 'jsdom';
+import { z } from 'zod';
 import { SITUATION_MAP_HTML } from '../../src/views/situation-map.js';
+
+/**
+ * The `ui/initialize` request as a host validates it: a copy of `McpUiInitializeRequestSchema` in
+ * `@modelcontextprotocol/ext-apps` (the host side, `AppBridge`), which requires `appInfo` and
+ * `appCapabilities` and answers anything else with an error. A fake host that accepts any
+ * parameters hid this once: the first view sent `capabilities` and `clientInfo`.
+ */
+const InitializeParams = z.object({
+  protocolVersion: z.string(),
+  appInfo: z.object({ name: z.string(), version: z.string() }).passthrough(),
+  appCapabilities: z.object({}).passthrough(),
+});
 
 type Fill = { color: string; x: number; y: number; w: number; h: number };
 type Sent = { jsonrpc: string; id?: number; method?: string; params?: Record<string, unknown>; result?: unknown };
@@ -71,6 +84,39 @@ describe('weather map view in a fake host', () => {
     return Promise.resolve().then(() => {
       expect(sent.some((m) => m.method === 'ui/notifications/initialized')).toBe(true);
     });
+  });
+
+  it('sends a ui/initialize request that a validating host accepts', () => {
+    const { sent } = openView();
+    const init = sent.find((m) => m.method === 'ui/initialize');
+    const parsed = InitializeParams.safeParse(init?.params);
+    expect(parsed.error?.issues).toBeUndefined();
+    expect(parsed.success).toBe(true);
+    expect(init?.params).not.toHaveProperty('clientInfo');
+    expect(init?.params).not.toHaveProperty('capabilities');
+  });
+
+  it('shows the error when the host refuses the handshake, and does not go on', async () => {
+    const { host, sent, document } = openView();
+    const id = sent.find((m) => m.method === 'ui/initialize')?.id;
+    host({ jsonrpc: '2.0', id, error: { code: -32602, message: 'Invalid params: appInfo is required' } });
+    await Promise.resolve();
+    expect(document.body.textContent).toContain('The host refused to start the weather map');
+    expect(document.body.textContent).toContain('appInfo is required');
+    expect(sent.some((m) => m.method === 'ui/notifications/initialized')).toBe(false);
+    expect(sent.some((m) => m.method === 'ui/notifications/size-changed')).toBe(false);
+  });
+
+  it('draws the map from the JSON text when the host passes no structuredContent', () => {
+    const { host, fills, document } = openView();
+    host({
+      jsonrpc: '2.0',
+      method: 'ui/notifications/tool-result',
+      params: { content: [{ type: 'text', text: JSON.stringify(GRID_RESULT.structuredContent) }] },
+    });
+    expect(document.querySelector('canvas')).not.toBeNull();
+    expect(fills).toHaveLength(4);
+    expect(document.body.textContent).toContain('Wallis: Sunny (90 %)');
   });
 
   it('takes the theme of the host', async () => {
