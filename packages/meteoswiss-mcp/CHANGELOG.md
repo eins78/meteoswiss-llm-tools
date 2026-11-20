@@ -1,5 +1,19 @@
 # meteoswiss-mcp
 
+## 4.3.0
+
+Released 2026-11-17
+
+### Minor Changes
+
+- 8a092cf: `meteoswissWeatherSituation`: with `map: "grid"` the grid now states its size in `grid.cols` (characters per row) and `grid.row_count` (number of rows), so a model no longer has to count. The description explains `missing` (point-hours without a weather symbol), says to use `meteoswissWeatherMapExperimental` when it is listed and the user wants to see a map, and the `source` text now carries the MeteoSwiss links.
+- 0aeb5ab: The server now sends short recipes in its `instructions` (the `initialize` result), so an agent knows which tools to call, in which order, for questions that need more than one call: where to catch the sun or get above the fog, where it is sunny or wet across Switzerland, how high the fog reaches, and one place now or later. A new `sunFinder` prompt takes a day, a start place and a travel radius in km and follows the first recipe; clients that list prompts show it (in Claude Code as `/mcp__meteoswiss-mcp__sunFinder`). The server's home page JSON now lists `meteoswissWeatherSituation` and the new prompt.
+- 2296730: New, experimental and off by default: a weather map as an MCP App. With `METEOSWISS_MAP_APP=true` the server offers `meteoswissWeatherMapExperimental` (title "Weather map (experimental)"; it may change or go away) to clients that render MCP Apps (Claude, ChatGPT, VS Code, Cursor and others). It takes the inputs of `meteoswissWeatherSituation` and returns the same answer with the 5 km grid; the client shows a map of Switzerland with the weather per cell, the regions and a legend. Clients that do not render MCP Apps see no change, and neither do the answers of the existing tools.
+
+### Patch Changes
+
+- bfb76b5: All 8 tools now declare that they only read (`readOnlyHint: true`, `destructiveHint: false`, `openWorldHint: true`) and carry a human `title`. Clients that ask before every tool without a read-only hint, such as ChatGPT developer mode, no longer treat weather calls as write actions.
+
 ## 4.2.1
 
 Released 2026-11-15
